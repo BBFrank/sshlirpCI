@@ -1,0 +1,60 @@
+#!/bin/bash
+
+arch=$1
+chroot_path=$2
+logfile=$3
+qemu_static_bin="/usr/bin/qemu-${arch}-static"
+
+# Controlla che i parametri siano stati passati
+if [ -z "$arch" ] || [ -z "$chroot_path" ] || [ -z "$logfile" ]; then
+    echo "From chrootSetup.sh: Usage: $0 <architecture> <chroot_path> <logfile>"
+    exit 1
+fi
+
+# Controllo che qemu static binary esista
+if [ ! -f "$qemu_static_bin" ]; then
+    echo "From chrootSetup.sh: Error: QEMU static binary $qemu_static_bin not found on host."
+    exit 1
+fi
+
+# Reindirizza output al logfile (nota: questo è ancora il log file sull'host, non dentro il chroot)
+exec >> "$logfile" 2>&1
+echo "From chrootSetup.sh: Starting chroot setup for $arch at $chroot_path"
+
+# Controlla se il chroot esiste già (semplice controllo sulla directory)
+if [ -d "$chroot_path/debootstrap" ]; then
+    echo "From chrootSetup.sh: Chroot directory $chroot_path already seems to be set up (debootstrap dir exists). Skipping debootstrap."
+    exit 0
+fi
+
+echo "From chrootSetup.sh: Running debootstrap first stage for $arch..."
+# Se siamo su riscv64 devo usare trixie come distro, non bookworm
+if [ "$arch" = "riscv64" ]; then
+    echo "From chrootSetup.sh: Using trixie as the distribution for architecture $arch."
+    sudo debootstrap --arch="$arch" --foreign trixie "$chroot_path" http://deb.debian.org/debian
+else
+    echo "From chrootSetup.sh: Using bookworm as the distribution for architecture $arch."
+    sudo debootstrap --arch="$arch" --foreign bookworm "$chroot_path" http://deb.debian.org/debian
+fi
+
+if [ $? -ne 0 ]; then
+    echo "From chrootSetup.sh: Error: debootstrap first stage failed for $arch."
+    exit 1
+fi
+
+echo "From chrootSetup.sh: Copying $qemu_static_bin to $chroot_path/usr/bin/..."
+sudo cp "$qemu_static_bin" "$chroot_path/usr/bin/"
+if [ $? -ne 0 ]; then
+    echo "From chrootSetup.sh: Error: Failed to copy qemu static binary."
+    exit 1
+fi
+
+echo "From chrootSetup.sh: Running debootstrap second stage for $arch..."
+sudo chroot "$chroot_path" /debootstrap/debootstrap --second-stage
+if [ $? -ne 0 ]; then
+    echo "From chrootSetup.sh: Error: debootstrap second stage failed for $arch."
+    exit 1
+fi
+
+echo "From chrootSetup.sh: Chroot setup completed successfully for $arch at $chroot_path."
+exit 0
