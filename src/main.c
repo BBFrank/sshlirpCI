@@ -12,6 +12,7 @@
 #include "init/init.h"
 #include "worker.h"
 #include "daemon_utils.h"
+#include "utils/utils.h"
 
 volatile sig_atomic_t terminate_daemon_flag = 0;
 
