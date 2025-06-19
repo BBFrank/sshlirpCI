@@ -270,14 +270,14 @@ int conf_vars_loader(
 int check_host_dirs(char* main_dir, char* target_dir, char* sshlirp_source_dir, char* libslirp_source_dir, char* log_file, char* sshlirp_repo_url, char* libslirp_repo_url, char* thread_log_dir) {
 
     // 1. Controllo l'esistenza e, se necessario, creo le directories e il file di log nella macchina host
-    // es: /home/sshlirpCI/
+    // es: /home/sshlirpCI
     if (access(main_dir, F_OK) == -1) {
         if (mkdir(main_dir, 0755) == -1) {
             perror("Error creating main directory");
             return 1;
         }
     }
-    // es: /home/sshlirpCI/thread-binaries/
+    // es: /home/sshlirpCI/thread-binaries
     if (access(target_dir, F_OK) == -1) {
         if (mkdir(target_dir, 0755) == -1) {
             perror("Error creating target directory");
@@ -298,7 +298,7 @@ int check_host_dirs(char* main_dir, char* target_dir, char* sshlirp_source_dir, 
             return 1;
         }
     }
-    // es: /home/sshlirpCI/log/
+    // es: /home/sshlirpCI/log
     char *log_dir = get_parent_dir(log_file);
     if (!log_dir) {
         perror("Error getting parent directory for log file");
@@ -320,7 +320,7 @@ int check_host_dirs(char* main_dir, char* target_dir, char* sshlirp_source_dir, 
         return 1;
     }
     fclose(log_fp);
-    // es: /home/sshlirpCI/log/threads/
+    // es: /home/sshlirpCI/log/threads
     if (access(thread_log_dir, F_OK) == -1) {
         if (mkdir(thread_log_dir, 0755) == -1) {
             perror("Error creating thread log directory");

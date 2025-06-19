@@ -29,6 +29,14 @@ void *build_worker(void *arg_ptr) {
 
     // Reindirizzo stdout e stderr al file di log personale del thred nell'host (quando entrerò nel chroot,
     // userò il file di log nel chroot)
+    // Nota importante: fare redirect di stdout e stderr su nuovi file per ogni thread con freopen non è uno standard posix, in quanto, in assenza
+    // di glibc, freopen lavorerebbe con i file descriptors originali di stdout e stderr (ossia 1 e 2) e questi sono fd unici e condivisi nello stesso processo
+    // (e anche se ho lanciato dei thread io sono sempre nello stesso processo). Quindi qui, secondo lo standard posix, si andrebbe a creare una race condition: ogni thread
+    // cerca forzatamente di reindirizzxare 1 e 2 su un proprio file -> vincerebbe l'ultimo thread e così sul log_file dell'ultimo thread andrebbero a finire anche i logs
+    // degli altri thread (che oltretutto vi scriverebbero senza tener conto del fatto che è un file condiviso quindi ci sarebbe annche un problema di scrittura
+    // su file concorrente non controllata).
+    // Con glibc invece, "sotto la scocca", freopen capisce che ci troviamo in dei thread e quindi non usa gli fd 1 e 2 originali, ma li duplica per ogni thread, permettendo così
+    // di redirezionare lo stderr e lo stdout di un thread al suo file di log personale senza problemi.
     if (freopen(args->thread_log_file, "a", stdout) == NULL) {
         fprintf(stderr, "Failed to redirect stdout to thread log file, for arch %s\n", args->arch);
     }
@@ -40,9 +48,7 @@ void *build_worker(void *arg_ptr) {
 
     if (args->pull_round == 0) {
         printf("First run (pull_round 0). Checking and eventually setting up chroot for %s.", args->arch);
-        // Non blocco questa operazione interamente in quanto l'unica operazione di scrittura nella stessa directory è la creazione del chroot, mentre il suo setup
-        // (che prevede sole operazioni di lettura su risorse condivise e scrittura su risorse private del thread) può avvenire senza lock.
-        // Quindi userò il lock solo per il mkdir del chroot
+        
         if (setup_chroot(args) != 0) {
             printf("Failed to check/setup chroot for %s.", args->arch);
             pthread_exit(worker_status_ptr);

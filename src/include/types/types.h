@@ -36,4 +36,9 @@ typedef struct {
     char thread_log_file[MAX_CONFIG_ATTR_LEN];
 } thread_args_t;
 
+typedef struct {
+    int new_commit;
+    int new_release;
+} commit_status_t;
+
 #endif // TYPES_H

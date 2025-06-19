@@ -37,7 +37,7 @@ static void update_daemon_state(const char *state) {
 }
 
 static void daemonize() {
-/*     pid_t pid;
+    pid_t pid;
 
     // Mi forko: il padre termina e il figlio avrà il compito di avviare il demone
     pid = fork();
@@ -51,11 +51,11 @@ static void daemonize() {
     // Creo una nuova sessione per il demone
     if (setsid() < 0) {
         exit(EXIT_FAILURE);
-    } */
+    }
 
     signal(SIGTERM, sigterm_handler);
 
-/*     // Mi forko nuovamente perchè così sarò figlio del session leader e sarò sicuro di non aver accesso al terminale
+    // Mi forko nuovamente perchè così sarò figlio del session leader e sarò sicuro di non aver accesso al terminale
     pid = fork();
     if (pid < 0) {
         exit(EXIT_FAILURE);
@@ -70,7 +70,7 @@ static void daemonize() {
     // Chiudo stdin, stdout, stderr
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
-    close(STDERR_FILENO); */
+    close(STDERR_FILENO);
 }
 
 static void log_time() {
@@ -163,12 +163,12 @@ int main() {
     atexit(cleanup_daemon_files);
 
     // 4. Reindirizzo stdout e stderr al file di log principale
-/*     if (freopen(log_file, "a", stdout) == NULL) {
+    if (freopen(log_file, "a", stdout) == NULL) {
         exit(EXIT_FAILURE);
     }
     if (freopen(log_file, "a", stderr) == NULL) {
         exit(EXIT_FAILURE);
-    } */
+    }
 
     int new_commit = -2;
 
@@ -231,17 +231,17 @@ int main() {
                 args[i].libslirp_host_source_dir[sizeof(args[i].libslirp_host_source_dir) - 1] = '\0';
 
                 // Copia sicura del chroot_path
-                snprintf(args[i].chroot_path, sizeof(args[i].chroot_path), "%s%s-chroot", main_dir, archs_list[i]);
+                snprintf(args[i].chroot_path, sizeof(args[i].chroot_path), "%s/%s-chroot", main_dir, archs_list[i]);
 
                 // Copia sicura della directory principale del thread (ossia dove, nel chroot, il thread dovrà lavorare -> come percorso "relativo" corrisponde alla main dir dell'host)
                 strncpy(args[i].thread_chroot_main_dir, main_dir, sizeof(args[i].thread_chroot_main_dir) - 1);
                 args[i].thread_chroot_main_dir[sizeof(args[i].thread_chroot_main_dir) - 1] = '\0';
 
-                // Copia sicura della directory di codice sorgente di sshlirp nel chroot
+                // Copia sicura della directory di codice sorgente di sshlirp nel chroot (il path relativo sarà lo stesso di quello usato nell'host)
                 strncpy(args[i].thread_chroot_sshlirp_dir, sshlirp_source_dir, sizeof(args[i].thread_chroot_sshlirp_dir) - 1);
                 args[i].thread_chroot_sshlirp_dir[sizeof(args[i].thread_chroot_sshlirp_dir) - 1] = '\0';
 
-                // Copia sicura della directory di codice sorgente di libslirp nel chroot
+                // Copia sicura della directory di codice sorgente di libslirp nel chroot (idem)
                 strncpy(args[i].thread_chroot_libslirp_dir, libslirp_source_dir, sizeof(args[i].thread_chroot_libslirp_dir) - 1);
                 args[i].thread_chroot_libslirp_dir[sizeof(args[i].thread_chroot_libslirp_dir) - 1] = '\0';
 
@@ -254,7 +254,7 @@ int main() {
                 args[i].thread_chroot_log_file[sizeof(args[i].thread_chroot_log_file) - 1] = '\0';
 
                 // Copia sicura del thread_log_file (ossia il log file su cui scriverà il thread quando non è nel chroot)
-                snprintf(args[i].thread_log_file, sizeof(args[i].thread_log_file), "%s%s-thread.log", thread_log_dir, archs_list[i]);
+                snprintf(args[i].thread_log_file, sizeof(args[i].thread_log_file), "%s/%s-thread.log", thread_log_dir, archs_list[i]);
 
                 if (pthread_create(&threads[i], NULL, build_worker, &args[i]) != 0) {
                     fprintf(stderr, "Errore durante la creazione del thread per l'architettura %s.\n", args[i].arch);
@@ -346,6 +346,17 @@ int main() {
 
 
                 if (access(source_bin_path, F_OK) == 0) {
+                    // soluzione temporanea: se il file esiste gi, è una vecchia versione quindi la rimuovo. (sarebbe meglio gestire le release con i tags:
+                    // se c'è un commit dello stesso tag, sovrascrivo nella stessa dir; se invece c'è un nuovo commit corrispondnete a un nuovo tag allora
+                    // creo una nuova directory e scrivo lì -> approccio complicato probabilmente dovresti modificare anche la struttura args)
+                    if (access(final_target_path, F_OK) == 0) {
+                        if (remove(final_target_path) != 0) {
+                            fprintf(stderr, "Errore durante la rimozione del vecchio binario %s per l'architettura %s. Errore: %s\n", final_target_path, args[i].arch, strerror(errno));
+                        } else {
+                            printf("Vecchio binario per l'architettura %s rimosso con successo.\n", args[i].arch);
+                        }
+                    }
+
                     if (rename(source_bin_path, final_target_path) != 0) {
                         fprintf(stderr, "Errore durante lo spostamento del binario %s a %s per l'architettura %s. Errore: %s\n", source_bin_path, final_target_path, args[i].arch, strerror(errno));
                     } else {
