@@ -20,7 +20,6 @@ int conf_vars_loader(
     int* poll_interval);
 
 int check_host_dirs(
-    char* main_dir, 
     char* target_dir, 
     char* sshlirp_source_dir, 
     char* libslirp_source_dir, 

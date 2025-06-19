@@ -87,9 +87,7 @@ static void log_time() {
 }
 
 int main() {
-    int round = 0;
-
-    // 1. Carico le variabili dal file di configurazione
+    // 0. Carico le variabili dal file di configurazione
     char** archs_list = (char**)malloc(MAX_ARCHITECTURES * sizeof(char*));
     int num_archs = 0;
     char *sshlirp_repo_url = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
@@ -129,7 +127,7 @@ int main() {
     printf("Configurazione caricata con successo.\n");
     printf("Verifica esistenza istanze del demone attive...\n");
 
-    // 2. Controllo se un'altra istanza del demone è già in esecuzione
+    // 1. Controllo se un'altra istanza del demone è già in esecuzione
     FILE* pid_fp_check = fopen(PID_FILE, "r");
     if (pid_fp_check) {
         pid_t old_pid;
@@ -145,7 +143,7 @@ int main() {
 
     printf("Daemonizzazione in corso... I log saranno reperibili in %s. Per terminare il processo eseguire: sudo ./sshlirp_ci_stop\n", log_file);
     
-    // 3. Demonizzo il processo
+    // 2. Demonizzo il processo
     daemonize();
 
     // ============== Codice eseguito solo dal demone da qui in poi ==============
@@ -162,7 +160,37 @@ int main() {
     // Registra la funzione di cleanup all'uscita
     atexit(cleanup_daemon_files);
 
-    // 4. Reindirizzo stdout e stderr al file di log principale
+    // 3. Creo la directory fondamentale (/home/sshlirpCI) e la directory e il file di log principale (/home/sshlirpCI/log/main_sshlirp.log) se non esistono
+    // /home/sshlirpCI
+    if (access(main_dir, F_OK) == -1) {
+        if (mkdir(main_dir, 0755) == -1) {
+            perror("Error creating main directory");
+            return 1;
+        }
+    }
+    // /home/sshlirpCI/log
+    char *log_dir = get_parent_dir(log_file);
+    if (!log_dir) {
+        perror("Error getting parent directory for log file");
+        return 1;
+    }
+    if (access(log_dir, F_OK) == -1) {
+        if (mkdir(log_dir, 0755) == -1) {
+            perror("Error creating log directory");
+            free(log_dir);
+            return 1;
+        }
+    }
+    free(log_dir);
+    // /home/sshlirpCI/log/main_sshlirp.log
+    FILE* log_fp = fopen(log_file, "a");
+    if (!log_fp) {
+        perror("Error opening log file");
+        return 1;
+    }
+    fclose(log_fp);
+
+    // 4. Reindirizzo stdout e stderr al file di log principale //OCCHIO NON SI PUÒ FARE, NON È DETTO CHE LOG-FILE ESISTA GIÀ
     if (freopen(log_file, "a", stdout) == NULL) {
         exit(EXIT_FAILURE);
     }
@@ -170,6 +198,7 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    int round = 0;
     int new_commit = -2;
 
     // 5. Avvio il loop principale nel demone
@@ -186,7 +215,7 @@ int main() {
             printf("Avvio del demone per la prima volta...\n");
 
             // Nota: questa funzione non fa nulla se le dirs sono già esistenti e se esiste già la repo git (possibile in caso di crash o interruzione)
-            if(check_host_dirs(main_dir, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, sshlirp_repo_url, libslirp_repo_url, thread_log_dir) == 1) {
+            if(check_host_dirs(target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, sshlirp_repo_url, libslirp_repo_url, thread_log_dir) == 1) {
                 fprintf(stderr, "Errore durante la ricerca o creazione delle directories dell'host, del file di log o durante la clonazione dei repository.\n");
                 terminate_daemon_flag = 1;
                 break;

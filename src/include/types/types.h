@@ -3,7 +3,7 @@
 
 #include <pthread.h>
 
-#define DEFAULT_CONFIG_PATH "/home/francesco/Scrivania/terzo_anno/Sistemi_Virtuali/sshlirp/sshlirpCI/ci.conf"
+#define DEFAULT_CONFIG_PATH "/home/francesco/Scrivania/terzo_anno/Sistemi_Virtuali/sshlirp/sshlirpCI/sshlirpCI/ci.conf"
 #define CONFIG_SSHLIRP_KEY "SSHLIRP_REPO_URL="
 #define CONFIG_LIBSLIRP_KEY "LIBSLIRP_REPO_URL="
 #define CONFIG_MAINDIR_KEY "MAIN_DIR="
