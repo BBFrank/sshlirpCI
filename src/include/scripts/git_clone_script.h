@@ -31,8 +31,6 @@ static const char git_clone_script_content[] =
     "# Reinderizza gli output dei comandi e gli echo nel file di log\n"
     "exec >> \"$logfile\" 2>&1\n"
     "\n"
-    "echo \"From gitClone.sh (embedded): Logfile: $logfile\"\n"
-    "\n"
     "# Controlla che il path di clonaggio sia valido (deve esistere, creato da C)\n"
     "if [ ! -d \"$where2clone\" ]; then\n"
     "    echo \"From gitClone.sh (embedded): Error: Destination directory does not exist: $where2clone. It should be created by the C program.\"\n"

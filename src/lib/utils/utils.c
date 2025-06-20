@@ -19,25 +19,18 @@ int execute_embedded_script(
     char temp_script_path[] = "/tmp/ci_script_XXXXXX";
     int fd = mkstemp(temp_script_path);
     if (fd == -1) {
-        fprintf(log_fp, "mkstemp failed");
+        fprintf(log_fp, "mkstemp failed: %s\n", strerror(errno));
         return -1;
-    }
+   }
 
-    FILE* temp_script_file = fdopen(fd, "w");
-    if (!temp_script_file) {
-        fprintf(log_fp, "fdopen failed: %s\n", strerror(errno));
+    ssize_t to_write = strlen(script_content);
+    if (write(fd, script_content, to_write) != to_write) {
+        fprintf(log_fp, "write to temp script failed: %s\n", strerror(errno));
         close(fd);
         remove(temp_script_path);
         return -1;
     }
-
-    if (fputs(script_content, temp_script_file) == EOF) {
-        fprintf(log_fp, "fputs to temp script failed: %s\n", strerror(errno));
-        fclose(temp_script_file);
-        remove(temp_script_path);
-        return -1;
-    }
-    fclose(temp_script_file);
+    close(fd);
 
     if (chmod(temp_script_path, 0700) == -1) {
         fprintf(log_fp, "chmod on temp script failed: %s\n", strerror(errno));
@@ -49,10 +42,10 @@ int execute_embedded_script(
 
     if (arg4 == NULL) {
         // Se arg4 è NULL, eseguo lo script con 3 argomenti in quanto sono sicuro che sarà gitClone
-        snprintf(command, sizeof(command), "\"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3);
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3);
     } else {
         // Altrimenti si tratta di checkCommit
-        snprintf(command, sizeof(command), "\"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3, arg4, arg5);
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3, arg4, arg5);
     }
 
     int status = system(command);
@@ -93,21 +86,14 @@ int execute_embedded_script_for_thread(
         return 1;
     }
 
-    FILE* temp_script_file = fdopen(fd, "w");
-    if (!temp_script_file) {
-        fprintf(log_fp, "[Thread %s] fdopen for %s failed: %s\n", arch, script_name, strerror(errno));
+    ssize_t to_write = strlen(script_content);
+    if (write(fd, script_content, to_write) != to_write) {
+        fprintf(log_fp, "[Thread %s] write to temp script %s failed: %s\n", arch, script_name, strerror(errno));
         close(fd);
         remove(temp_script_path);
         return 1;
     }
-
-    if (fputs(script_content, temp_script_file) == EOF) {
-        fprintf(log_fp, "[Thread %s] fputs to temp script %s failed: %s\n", arch, script_name, strerror(errno));
-        fclose(temp_script_file);
-        remove(temp_script_path);
-        return 1;
-    }
-    fclose(temp_script_file);
+    close(fd);
 
     if (chmod(temp_script_path, 0700) == -1) {
         fprintf(log_fp, "[Thread %s] chmod on temp script %s failed: %s\n", arch, script_name, strerror(errno));
@@ -118,11 +104,11 @@ int execute_embedded_script_for_thread(
     char command[MAX_COMMAND_LEN];
 
     if (arg4 == NULL) {
-        snprintf(command, sizeof(command), "\"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3);
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3);
     } else if (arg5 == NULL) {
-        snprintf(command, sizeof(command), "\"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3, arg4);
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3, arg4);
     } else {
-        snprintf(command, sizeof(command), "\"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3, arg4, arg5, arg6);
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3, arg4, arg5, arg6);
     }
 
     int status = system(command);

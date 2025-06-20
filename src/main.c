@@ -334,7 +334,7 @@ int main() {
                 FILE *thread_log_read_on_host = fopen(thread_log_path_on_host, "r");
                 FILE *thread_log_read_in_chroot = fopen(thread_log_path_in_chroot, "r");
 
-                if (thread_log_read_on_host && thread_log_read_in_chroot) {
+                if (thread_log_read_on_host) {
                     char line[1024];
 
                     fprintf(log_fp, "===== Inizio Log dal thread %s =====\n", args[i].arch);
@@ -345,12 +345,18 @@ int main() {
                     fclose(thread_log_read_on_host);
                     fprintf(log_fp, "--- Fine Log dal thread %s (Host logfile: %s) ---\n", args[i].arch, thread_log_path_on_host);
 
-                    fprintf(log_fp, "--- Inizio Log dal thread %s (Chroot logfile: %s) ---\n", args[i].arch, thread_log_path_in_chroot);
-                    while (fgets(line, sizeof(line), thread_log_read_in_chroot)) {
-                        fprintf(log_fp, "%s", line);
+                    // Nota: se c'è il log file nell'host, non è detto che ci sia anche quello dentro il chroot (potrebbe esserci stato un errore)
+                    if (thread_log_read_in_chroot) {
+                        fprintf(log_fp, "--- Inizio Log dal thread %s (Chroot logfile: %s) ---\n", args[i].arch, thread_log_path_in_chroot);
+                        while (fgets(line, sizeof(line), thread_log_read_in_chroot)) {
+                            fprintf(log_fp, "%s", line);
+                        }
+                        fclose(thread_log_read_in_chroot);
+                        fprintf(log_fp, "--- Fine Log dal thread %s (Chroot logfile: %s) ---\n", args[i].arch, thread_log_path_in_chroot);
+                    } else {
+                        fprintf(log_fp, "Avviso: Impossibile aprire il log del thread per l'architettura %s nel chroot: %s\n", args[i].arch, strerror(errno));
                     }
-                    fclose(thread_log_read_in_chroot);
-                    fprintf(log_fp, "--- Fine Log dal thread %s (Chroot logfile: %s) ---\n", args[i].arch, thread_log_path_in_chroot);
+
                     fprintf(log_fp, "===== Fine Log dal thread %s =====\n", args[i].arch);
 
                     // Pulisco i file di log del thread troncandoli
@@ -362,16 +368,18 @@ int main() {
                         fprintf(log_fp, "Errore nella pulizia (truncating) del log del thread per l'architettura %s: %s. Errore: %s\n", args[i].arch, thread_log_path_on_host, strerror(errno));
                     }
 
-                    FILE *thread_chroot_log_truncate = fopen(thread_log_path_in_chroot, "w");
-                    if (thread_chroot_log_truncate) {
-                        fclose(thread_chroot_log_truncate);
-                        fprintf(log_fp, "Log del thread %s (Chroot) pulito con successo: %s\n", args[i].arch, thread_log_path_in_chroot);
-                    } else {
-                        fprintf(log_fp, "Errore nella pulizia (truncating) del log del thread per l'architettura %s (Chroot): %s. Errore: %s\n", args[i].arch, thread_log_path_in_chroot, strerror(errno));
+                    if (access(thread_log_path_in_chroot, F_OK) == 0) {
+                        FILE *thread_chroot_log_truncate = fopen(thread_log_path_in_chroot, "w");
+                        if (thread_chroot_log_truncate) {
+                            fclose(thread_chroot_log_truncate);
+                            fprintf(log_fp, "Log del thread %s (Chroot) pulito con successo: %s\n", args[i].arch, thread_log_path_in_chroot);
+                        } else {
+                            fprintf(log_fp, "Errore nella pulizia (truncating) del log del thread per l'architettura %s (Chroot): %s. Errore: %s\n", args[i].arch, thread_log_path_in_chroot, strerror(errno));
+                        }
                     }
 
                 } else {
-                    fprintf(log_fp, "Avviso: Impossibile aprire per la lettura i file di log del thread per l'architettura %s. Errore: %s\n", args[i].arch, strerror(errno));
+                    fprintf(log_fp, "Avviso: Impossibile aprire per la lettura il file di log (Host) del thread per l'architettura %s. Errore: %s\n", args[i].arch, strerror(errno));
                 }
             }
 
