@@ -297,7 +297,19 @@ int main() {
             // 7.3. Attendo che tutti i thread finiscano
             for (int i = 0; i < num_archs; i++) {
                 void *thread_return_value;
-                if (pthread_join(threads[i], &thread_return_value) != 0) {
+
+                // Attendo il join del thread
+                int successful_join = pthread_join(threads[i], &thread_return_value);
+
+                // Mi assicuro che lo stderr e lo stdout siano "ritornati" al file del main (log_file)
+                if (freopen(log_file, "a", stdout) == NULL) {
+                    printf("Errore durante il reindirizzamento di stdout al file di log principale: le prossime stampe di stdout non dovrebbero trovarsi in questo file ma nel file %s\n", log_file);
+                }
+                if (freopen(log_file, "a", stderr) == NULL) {
+                    printf("Errore durante il reindirizzamento di stderr al file di log principale: le prossime stampe di stderr non dovrebbero trovarsi in questo file ma nel file %s\n", log_file);
+                }
+
+                if (successful_join != 0) {
                     fprintf(stderr, "Errore durante il join del thread per %s\n", args[i].arch);
                 } else {
                     if (thread_return_value != NULL) {
