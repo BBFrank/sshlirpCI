@@ -26,13 +26,17 @@ int check_host_dirs(
     char* log_file, 
     char* sshlirp_repo_url, 
     char* libslirp_repo_url, 
-    char* thread_log_dir);
+    char* thread_log_dir,
+    FILE* log_fp
+);
 
 int check_new_commit(
     char* sshlirp_source_dir, 
     char* sshlirp_repo_url, 
     char* libslirp_source_dir, 
     char* libslirp_repo_url, 
-    char* log_file);
+    char* log_file,
+    FILE* log_fp
+);
 
 #endif // INIT_H

@@ -14,10 +14,10 @@
 #include "utils/utils.h"
 
 // Funzione per configurare il chroot per il thread (crea la directory di chroot, esegue lo script di setup del chroot)
-int setup_chroot(thread_args_t* args) {
+int setup_chroot(thread_args_t* args, FILE* thread_log_fp) {
     
     if (mkdir(args->chroot_path, 0755) == -1 && errno != EEXIST) {
-        fprintf(stderr, "[Thread %s] Failed to create chroot directory %s: %s\n", args->arch, args->chroot_path, strerror(errno));
+        fprintf(thread_log_fp, "[Thread %s] Failed to create chroot directory %s: %s\n", args->arch, args->chroot_path, strerror(errno));
         return 1;
     }
 
@@ -29,11 +29,12 @@ int setup_chroot(thread_args_t* args) {
         args->arch,
         args->chroot_path,
         args->thread_log_file,
-        NULL, NULL, NULL
+        NULL, NULL, NULL,
+        thread_log_fp
     );
 
     if (script_status != 0) {
-        fprintf(stderr, "[Thread %s] Chroot setup script failed with status: %d\n", args->arch, script_status);
+        fprintf(thread_log_fp, "[Thread %s] Chroot setup script failed with status: %d\n", args->arch, script_status);
         return 1;
     }
 
@@ -47,13 +48,13 @@ int setup_chroot(thread_args_t* args) {
 // - thread_chroot_target_dir: directory di destinazione dei binari compilati dentro il chroot (es: <path2chroot>/home/sshlirpCI/thread-binaries)
 // - getparent(thread_chroot_log_file): directory di log del thread dentro il chroot (es: <path2chroot>/home/sshlirpCI/log)
 // - thread_chroot_log_file: file di log del thread dentro il chroot (es: <path2chroot>/home/sshlirpCI/log/thread_sshlirp.log)
-int check_worker_dirs(thread_args_t* args) {
+int check_worker_dirs(thread_args_t* args, FILE* thread_log_fp) {
     // es: <path2chroot>/home/sshlirpCI/
     char path_buffer[1024];
     snprintf(path_buffer, sizeof(path_buffer), "%s%s", args->chroot_path, args->thread_chroot_main_dir);
     if(access(path_buffer, F_OK) == -1) {
         if (mkdir(path_buffer, 0755) == -1) {
-            fprintf(stderr, "[Thread %s] Failed to create main directory inside chroot: %s\n", args->arch, strerror(errno));
+            fprintf(thread_log_fp, "[Thread %s] Failed to create main directory inside chroot: %s\n", args->arch, strerror(errno));
             return 1;
         }
     }
@@ -61,7 +62,7 @@ int check_worker_dirs(thread_args_t* args) {
     snprintf(path_buffer, sizeof(path_buffer), "%s%s", args->chroot_path, args->thread_chroot_sshlirp_dir);
     if(access(path_buffer, F_OK) == -1) {
         if (mkdir(path_buffer, 0755) == -1) {
-            fprintf(stderr, "[Thread %s] Failed to create sshlirp directory inside chroot: %s\n", args->arch, strerror(errno));
+            fprintf(thread_log_fp, "[Thread %s] Failed to create sshlirp directory inside chroot: %s\n", args->arch, strerror(errno));
             return 1;
         }
     }
@@ -69,7 +70,7 @@ int check_worker_dirs(thread_args_t* args) {
     snprintf(path_buffer, sizeof(path_buffer), "%s%s", args->chroot_path, args->thread_chroot_libslirp_dir);
     if(access(path_buffer, F_OK) == -1) {
         if (mkdir(path_buffer, 0755) == -1) {
-            fprintf(stderr, "[Thread %s] Failed to create libslirp directory inside chroot: %s\n", args->arch, strerror(errno));
+            fprintf(thread_log_fp, "[Thread %s] Failed to create libslirp directory inside chroot: %s\n", args->arch, strerror(errno));
             return 1;
         }
     }
@@ -77,14 +78,14 @@ int check_worker_dirs(thread_args_t* args) {
     snprintf(path_buffer, sizeof(path_buffer), "%s%s", args->chroot_path, args->thread_chroot_target_dir);
     if(access(path_buffer, F_OK) == -1) {
         if (mkdir(path_buffer, 0755) == -1) {
-            fprintf(stderr, "[Thread %s] Failed to create target directory inside chroot: %s\n", args->arch, strerror(errno));
+            fprintf(thread_log_fp, "[Thread %s] Failed to create target directory inside chroot: %s\n", args->arch, strerror(errno));
             return 1;
         }
     }
     // es: <path2chroot>/home/sshlirpCI/log
     char* log_parent_dir_rel = get_parent_dir(args->thread_chroot_log_file);
     if (!log_parent_dir_rel) {
-        fprintf(stderr, "[Thread %s] Failed to get parent directory for chroot log file\n", args->arch);
+        fprintf(thread_log_fp, "[Thread %s] Failed to get parent directory for chroot log file\n", args->arch);
         return 1;
     }
     snprintf(path_buffer, sizeof(path_buffer), "%s%s", args->chroot_path, log_parent_dir_rel);
@@ -92,7 +93,7 @@ int check_worker_dirs(thread_args_t* args) {
 
     if(access(path_buffer, F_OK) == -1) {
         if (mkdir(path_buffer, 0755) == -1) {
-            fprintf(stderr, "[Thread %s] Failed to create log directory inside chroot: %s\n", args->arch, strerror(errno));
+            fprintf(thread_log_fp, "[Thread %s] Failed to create log directory inside chroot: %s\n", args->arch, strerror(errno));
             return 1;
         }
     }
@@ -101,7 +102,7 @@ int check_worker_dirs(thread_args_t* args) {
     snprintf(path_buffer, sizeof(path_buffer), "%s%s", args->chroot_path, args->thread_chroot_log_file);
     FILE* thread_chroot_log_fp = fopen(path_buffer, "a");
     if (!thread_chroot_log_fp) {
-        fprintf(stderr, "[Thread %s] Failed to open thread log file inside chroot %s: %s\n", args->arch, path_buffer, strerror(errno));
+        fprintf(thread_log_fp, "[Thread %s] Failed to open thread log file inside chroot %s: %s\n", args->arch, path_buffer, strerror(errno));
         return 1;
     }
     fclose(thread_chroot_log_fp);
@@ -110,7 +111,7 @@ int check_worker_dirs(thread_args_t* args) {
 }
 
 // Funzione che si occupa di copiare i sorgenti di sshlirp e libslirp dentro il chroot dalle directory host
-int copy_sources_to_chroot(thread_args_t* args) {
+int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
     // Eseguo lo script di copia dei sorgenti dentro il chroot (non effettuo ancora il chroot effettivo)
     int script_status = execute_embedded_script_for_thread(
         args->arch,
@@ -121,11 +122,12 @@ int copy_sources_to_chroot(thread_args_t* args) {
         args->chroot_path,
         args->thread_chroot_sshlirp_dir,
         args->thread_chroot_libslirp_dir,
-        args->thread_log_file
+        args->thread_log_file,
+        thread_log_fp
     );
 
     if (script_status != 0) {
-        fprintf(stderr, "[Thread %s] Copy sources script failed with status: %d\n", args->arch, script_status);
+        fprintf(thread_log_fp, "[Thread %s] Copy sources script failed with status: %d\n", args->arch, script_status);
         return 1;
     }
 
@@ -133,7 +135,7 @@ int copy_sources_to_chroot(thread_args_t* args) {
 }
 
 // Funzione che si occupa di compilare e verificare i sorgenti di sshlirp dentro il chroot (quando lancio lo script entrerò effettivamente nel chroot)
-int compile_and_verify_in_chroot(thread_args_t* args) {
+int compile_and_verify_in_chroot(thread_args_t* args, FILE* thread_log_fp) {
     // Eseguo lo script di compilazione dentro il chroot
     int script_status = execute_embedded_script_for_thread(
         args->arch,
@@ -144,18 +146,19 @@ int compile_and_verify_in_chroot(thread_args_t* args) {
         args->thread_chroot_libslirp_dir,
         args->thread_chroot_target_dir,
         args->arch,
-        args->thread_chroot_log_file
+        args->thread_chroot_log_file,
+        thread_log_fp
     );
 
     if (script_status != 0) {
-        fprintf(stderr, "[Thread %s] Compile script failed with status: %d\n", args->arch, script_status);
+        fprintf(thread_log_fp, "[Thread %s] Compile script failed with status: %d\n", args->arch, script_status);
         return 1;
     }
 
     return 0;
 }
 
-int remove_sources_copy_from_chroot(thread_args_t* args) {
+int remove_sources_copy_from_chroot(thread_args_t* args, FILE* thread_log_fp) {
     // Eseguo lo script di rimozione dei sorgenti dentro il chroot
     int script_status = execute_embedded_script_for_thread(
         args->arch,
@@ -165,11 +168,12 @@ int remove_sources_copy_from_chroot(thread_args_t* args) {
         args->thread_chroot_sshlirp_dir,
         args->thread_chroot_libslirp_dir,
         args->thread_log_file,
-        NULL, NULL
+        NULL, NULL,
+        thread_log_fp
     );
 
     if (script_status != 0) {
-        fprintf(stderr, "[Thread %s] Remove sources script failed with status: %d\n", args->arch, script_status);
+        fprintf(thread_log_fp, "[Thread %s] Remove sources script failed with status: %d\n", args->arch, script_status);
         return 1;
     }
 

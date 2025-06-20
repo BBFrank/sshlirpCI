@@ -267,14 +267,14 @@ int conf_vars_loader(
     }
 
 // Funzione per verificare se le directory host esistono o crearle e clonare i repository
-int check_host_dirs(char* target_dir, char* sshlirp_source_dir, char* libslirp_source_dir, char* log_file, char* sshlirp_repo_url, char* libslirp_repo_url, char* thread_log_dir) {
+int check_host_dirs(char* target_dir, char* sshlirp_source_dir, char* libslirp_source_dir, char* log_file, char* sshlirp_repo_url, char* libslirp_repo_url, char* thread_log_dir, FILE* log_fp) {
 
     // 1. Controllo l'esistenza e, se necessario, creo le directories e il file di log nella macchina host
 
     // es: /home/sshlirpCI/thread-binaries
     if (access(target_dir, F_OK) == -1) {
         if (mkdir(target_dir, 0755) == -1) {
-            perror("Error creating target directory");
+            fprintf(log_fp, "Error creating target directory: %s\n", strerror(errno));
             return 1;
         }
     }
@@ -282,7 +282,7 @@ int check_host_dirs(char* target_dir, char* sshlirp_source_dir, char* libslirp_s
     // es: /home/sshlirpCI/sshlirp
     if (access(sshlirp_source_dir, F_OK) == -1) {
         if (mkdir(sshlirp_source_dir, 0755) == -1) {
-            perror("Error creating SSHLIRP source directory");
+            fprintf(log_fp, "Error creating SSHLIRP source directory: %s\n", strerror(errno));
             return 1;
         }
     }
@@ -290,7 +290,7 @@ int check_host_dirs(char* target_dir, char* sshlirp_source_dir, char* libslirp_s
     // es: /home/sshlirpCI/libslirp
     if (access(libslirp_source_dir, F_OK) == -1) {
         if (mkdir(libslirp_source_dir, 0755) == -1) {
-            perror("Error creating LIBSLIRP source directory");
+            fprintf(log_fp, "Error creating LIBSLIRP source directory: %s\n", strerror(errno));
             return 1;
         }
     }
@@ -298,7 +298,7 @@ int check_host_dirs(char* target_dir, char* sshlirp_source_dir, char* libslirp_s
     // es: /home/sshlirpCI/log/threads (sono sicuro che la directory log esista già, creata in main.c)
     if (access(thread_log_dir, F_OK) == -1) {
         if (mkdir(thread_log_dir, 0755) == -1) {
-            perror("Error creating thread log directory");
+            fprintf(log_fp, "Error creating thread log directory: %s\n", strerror(errno));
             return 1;
         }
     }
@@ -306,41 +306,41 @@ int check_host_dirs(char* target_dir, char* sshlirp_source_dir, char* libslirp_s
     // 2. Clono le repo nei rispettivi percorsi -> lancio lo script incorporato gitClone.sh
     int script_status;
 
-    script_status = execute_embedded_script(git_clone_script_content, sshlirp_repo_url, sshlirp_source_dir, log_file, NULL, NULL);
+    script_status = execute_embedded_script(git_clone_script_content, sshlirp_repo_url, sshlirp_source_dir, log_file, NULL, NULL, log_fp);
     if (script_status != 0) {
-        fprintf(stderr, "Error cloning sshlirp repository via embedded script. Script exit status: %d\n", script_status);
+        fprintf(log_fp, "Error cloning sshlirp repository via embedded script. Script exit status: %d\n", script_status);
         return 1;
     }
 
-    script_status = execute_embedded_script(git_clone_script_content, libslirp_repo_url, libslirp_source_dir, log_file, NULL, NULL);
+    script_status = execute_embedded_script(git_clone_script_content, libslirp_repo_url, libslirp_source_dir, log_file, NULL, NULL, log_fp);
     if (script_status != 0) {
-        fprintf(stderr, "Error cloning libslirp repository via embedded script. Script exit status: %d\n", script_status);
+        fprintf(log_fp, "Error cloning libslirp repository via embedded script. Script exit status: %d\n", script_status);
         return 1;
     }
 
     return 0;
 }
 
-int check_new_commit(char* sshlirp_source_dir, char* sshlirp_repo_url, char* libslirp_source_dir, char* libslirp_repo_url, char* log_file) {
+int check_new_commit(char* sshlirp_source_dir, char* sshlirp_repo_url, char* libslirp_source_dir, char* libslirp_repo_url, char* log_file, FILE* log_fp) {
     int script_status;
 
-    script_status = execute_embedded_script(check_commit_script_content, sshlirp_source_dir, sshlirp_repo_url, libslirp_source_dir, libslirp_repo_url, log_file);
+    script_status = execute_embedded_script(check_commit_script_content, sshlirp_source_dir, sshlirp_repo_url, libslirp_source_dir, libslirp_repo_url, log_file, log_fp);
 
     if (script_status == 1 || script_status == -1) {
-        fprintf(stderr, "Error checking for new commits. Script exit status: %d\n", script_status);
+        fprintf(log_fp, "Error checking for new commits. Script exit status: %d\n", script_status);
         return 1;
     }
 
     if (script_status == 2) {
-        printf("New commits for sshlirp detected and pulled.\n");
+        fprintf(log_fp, "New commits for sshlirp detected and pulled.\n");
         return 2;
     }
 
     if (script_status == 0) {
-        printf("No new commits found for sshlirp.\n");
+        fprintf(log_fp, "No new commits found for sshlirp.\n");
         return 0;
     }
-    
-    fprintf(stderr, "Unexpected commit check status from script: %d\n", script_status);
+
+    fprintf(log_fp, "Unexpected commit check status from script: %d\n", script_status);
     return 1;
 }

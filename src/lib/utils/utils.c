@@ -13,25 +13,26 @@ int execute_embedded_script(
     const char* arg2, 
     const char* arg3,
     const char* arg4,
-    const char* arg5
+    const char* arg5,
+    FILE* log_fp
 ) {
     char temp_script_path[] = "/tmp/ci_script_XXXXXX";
     int fd = mkstemp(temp_script_path);
     if (fd == -1) {
-        perror("mkstemp failed");
+        fprintf(log_fp, "mkstemp failed");
         return -1;
     }
 
     FILE* temp_script_file = fdopen(fd, "w");
     if (!temp_script_file) {
-        perror("fdopen failed");
+        fprintf(log_fp, "fdopen failed: %s\n", strerror(errno));
         close(fd);
         remove(temp_script_path);
         return -1;
     }
 
     if (fputs(script_content, temp_script_file) == EOF) {
-        perror("fputs to temp script failed");
+        fprintf(log_fp, "fputs to temp script failed: %s\n", strerror(errno));
         fclose(temp_script_file);
         remove(temp_script_path);
         return -1;
@@ -39,7 +40,7 @@ int execute_embedded_script(
     fclose(temp_script_file);
 
     if (chmod(temp_script_path, 0700) == -1) {
-        perror("chmod on temp script failed");
+        fprintf(log_fp, "chmod on temp script failed: %s\n", strerror(errno));
         remove(temp_script_path);
         return -1;
     }
@@ -59,7 +60,7 @@ int execute_embedded_script(
     remove(temp_script_path);
 
     if (status == -1) {
-        perror("system() call to execute temp script failed");
+        fprintf(log_fp, "system() call to execute temp script failed");
         return -1;
     }
     
@@ -68,7 +69,7 @@ int execute_embedded_script(
     }
 
     // Se lo script non è terminato normalmente, stampo un messaggio di errore
-    fprintf(stderr, "Temporary script terminated abnormally. Status: %d\n", status);
+    fprintf(log_fp, "Temporary script terminated abnormally. Status: %d\n", status);
     return -1;
 }
 
@@ -82,25 +83,26 @@ int execute_embedded_script_for_thread(
     const char* arg3,
     const char* arg4,
     const char* arg5,
-    const char* arg6
+    const char* arg6,
+    FILE* log_fp
 ) {
     char temp_script_path[] = "/tmp/ci_script_XXXXXX";
     int fd = mkstemp(temp_script_path);
     if (fd == -1) {
-        fprintf(stderr, "[Thread %s] mkstemp for %s failed: %s\n", arch, script_name, strerror(errno));
+        fprintf(log_fp, "[Thread %s] mkstemp for %s failed: %s\n", arch, script_name, strerror(errno));
         return 1;
     }
 
     FILE* temp_script_file = fdopen(fd, "w");
     if (!temp_script_file) {
-        fprintf(stderr, "[Thread %s] fdopen for %s failed: %s\n", arch, script_name, strerror(errno));
+        fprintf(log_fp, "[Thread %s] fdopen for %s failed: %s\n", arch, script_name, strerror(errno));
         close(fd);
         remove(temp_script_path);
         return 1;
     }
 
     if (fputs(script_content, temp_script_file) == EOF) {
-        fprintf(stderr, "[Thread %s] fputs to temp script %s failed: %s\n", arch, script_name, strerror(errno));
+        fprintf(log_fp, "[Thread %s] fputs to temp script %s failed: %s\n", arch, script_name, strerror(errno));
         fclose(temp_script_file);
         remove(temp_script_path);
         return 1;
@@ -108,7 +110,7 @@ int execute_embedded_script_for_thread(
     fclose(temp_script_file);
 
     if (chmod(temp_script_path, 0700) == -1) {
-        fprintf(stderr, "[Thread %s] chmod on temp script %s failed: %s\n", arch, script_name, strerror(errno));
+        fprintf(log_fp, "[Thread %s] chmod on temp script %s failed: %s\n", arch, script_name, strerror(errno));
         remove(temp_script_path);
         return 1;
     }
@@ -128,7 +130,7 @@ int execute_embedded_script_for_thread(
     remove(temp_script_path);
 
     if (status == -1) {
-        perror("system() call to execute temp script failed");
+        fprintf(log_fp, "system() call to execute temp script failed");
         return 1;
     }
     
@@ -136,7 +138,7 @@ int execute_embedded_script_for_thread(
         return WEXITSTATUS(status);
     }
 
-    fprintf(stderr, "Temporary script terminated abnormally. Status: %d\n", status);
+    fprintf(log_fp, "Temporary script terminated abnormally. Status: %d\n", status);
     return 1;
 }
 

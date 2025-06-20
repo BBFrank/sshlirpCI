@@ -41,4 +41,9 @@ typedef struct {
     int new_release;
 } commit_status_t;
 
+typedef struct {
+    int status;
+    char *error_message;
+} thread_result_t;
+
 #endif // TYPES_H
