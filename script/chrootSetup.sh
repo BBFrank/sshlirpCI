@@ -22,8 +22,8 @@ exec >> "$logfile" 2>&1
 echo "From chrootSetup.sh: Starting chroot setup for $arch at $chroot_path"
 
 # Controlla se il chroot esiste già (semplice controllo sulla directory)
-if [ -d "$chroot_path/debootstrap" ]; then
-    echo "From chrootSetup.sh: Chroot directory $chroot_path already seems to be set up (debootstrap dir exists). Skipping debootstrap."
+if [ -d "$chroot_path/home" ]; then
+    echo "From chrootSetup.sh: Chroot directory $chroot_path already seems to be set up (home dir exists). Skipping debootstrap."
     exit 0
 fi
 
