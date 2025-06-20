@@ -67,11 +67,6 @@ static void daemonize() {
 
     // Tento di cambiare la directory di lavoro a /
     chdir("/");
-
-    // Chiudo stdin, stdout, stderr
-    close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
 }
 
 static void log_time(FILE *log_file) {
@@ -189,6 +184,8 @@ int main() {
         perror("Error opening log file");
         return 1;
     }
+    // Imposto il line buffering per il file di log principale, in modo che le stampe vengano scritte subito dopo ogni newline
+    setvbuf(log_fp, NULL, _IOLBF, 0);
     // non chiudo log_fp qui, lo chiuderò alla fine del main, in quanto mi serve per scrivere i log del demone
 
 /*     // 4. Reindirizzo stdout e stderr al file di log principale //commentato perchè con freopen non funziona con più thread
