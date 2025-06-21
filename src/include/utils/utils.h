@@ -10,6 +10,7 @@ int execute_embedded_script(
     const char* arg3, 
     const char* arg4, 
     const char* arg5,
+    const char* versioning_file,
     FILE* log_fp
 );
 

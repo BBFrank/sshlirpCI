@@ -23,7 +23,7 @@ if [ -d "$chroot_sshlirp_full_path/.git" ]; then
     echo "From removeSourceCopy.sh: Removing $chroot_sshlirp_full_path contents."
     sudo rm -rf "$chroot_sshlirp_full_path/"*
     if [ $? -ne 0 ]; then
-        echo "From removeSourceCopy.sh: Error removing contents of $chroot_sshlirp_full_path."
+        echo "Error: From removeSourceCopy.sh: Error removing contents of $chroot_sshlirp_full_path."
         exit 1
     fi
 else
@@ -35,7 +35,7 @@ if [ -d "$chroot_libslirp_full_path/.git" ]; then
     echo "From removeSourceCopy.sh: Removing $chroot_libslirp_full_path contents."
     sudo rm -rf "$chroot_libslirp_full_path/"*
     if [ $? -ne 0 ]; then
-        echo "From removeSourceCopy.sh: Error removing contents of $chroot_libslirp_full_path."
+        echo "Error: From removeSourceCopy.sh: Error removing contents of $chroot_libslirp_full_path."
         exit 1
     fi
 else

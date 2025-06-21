@@ -24,14 +24,14 @@ chroot_libslirp_full_path="$chroot_path$chroot_libslirp_dir"
 echo "From copySource.sh: Ensuring copy point $chroot_sshlirp_full_path exists."
 sudo mkdir -p "$chroot_sshlirp_full_path"
 if [ $? -ne 0 ]; then
-    echo "From copySource.sh: Error creating copy point $chroot_sshlirp_full_path."
+    echo " Error: From copySource.sh: Error creating copy point $chroot_sshlirp_full_path."
     exit 1
 fi
 
 echo "From copySource.sh: Ensuring copy point $chroot_libslirp_full_path exists."
 sudo mkdir -p "$chroot_libslirp_full_path"
 if [ $? -ne 0 ]; then
-    echo "From copySource.sh: Error creating copy point $chroot_libslirp_full_path."
+    echo " Error: From copySource.sh: Error creating copy point $chroot_libslirp_full_path."
     exit 1
 fi
 
@@ -43,7 +43,7 @@ else
     echo "From copySource.sh: Copying $host_sshlirp_src to $chroot_sshlirp_full_path"
     sudo cp -r "$host_sshlirp_src"/* "$chroot_sshlirp_full_path/"
     if [ $? -ne 0 ]; then
-        echo "From copySource.sh: Error copying $host_sshlirp_src to $chroot_sshlirp_full_path."
+        echo "Error: From copySource.sh: Error copying $host_sshlirp_src to $chroot_sshlirp_full_path."
         exit 1
     fi
 fi
@@ -55,7 +55,7 @@ else
     echo "From copySource.sh: Copying $host_libslirp_src to $chroot_libslirp_full_path"
     sudo cp -r "$host_libslirp_src"/* "$chroot_libslirp_full_path/"
     if [ $? -ne 0 ]; then
-        echo "From copySource.sh: Error copying $host_libslirp_src to $chroot_libslirp_full_path."
+        echo "Error: From copySource.sh: Error copying $host_libslirp_src to $chroot_libslirp_full_path."
         exit 1
     fi
 fi

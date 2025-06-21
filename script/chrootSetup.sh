@@ -13,7 +13,7 @@ fi
 
 # Controllo che qemu static binary esista
 if [ ! -f "$qemu_static_bin" ]; then
-    echo "From chrootSetup.sh: Error: QEMU static binary $qemu_static_bin not found on host."
+    echo "Error: From chrootSetup.sh: QEMU static binary $qemu_static_bin not found on host."
     exit 1
 fi
 
@@ -38,21 +38,21 @@ else
 fi
 
 if [ $? -ne 0 ]; then
-    echo "From chrootSetup.sh: Error: debootstrap first stage failed for $arch."
+    echo "Error: From chrootSetup.sh: debootstrap first stage failed for $arch."
     exit 1
 fi
 
 echo "From chrootSetup.sh: Copying $qemu_static_bin to $chroot_path/usr/bin/..."
 sudo cp "$qemu_static_bin" "$chroot_path/usr/bin/"
 if [ $? -ne 0 ]; then
-    echo "From chrootSetup.sh: Error: Failed to copy qemu static binary."
+    echo "Error: From chrootSetup.sh: Failed to copy qemu static binary."
     exit 1
 fi
 
 echo "From chrootSetup.sh: Running debootstrap second stage for $arch..."
 sudo chroot "$chroot_path" /debootstrap/debootstrap --second-stage
 if [ $? -ne 0 ]; then
-    echo "From chrootSetup.sh: Error: debootstrap second stage failed for $arch."
+    echo "Error: From chrootSetup.sh: debootstrap second stage failed for $arch."
     exit 1
 fi
 

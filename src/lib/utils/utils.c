@@ -7,6 +7,11 @@
 #include "types/types.h"
 
 // Funzione helper per creare, scrivere, rendere eseguibile e poi rimuovere uno script temporaneo
+// Nota: questa funzione viene chiamata sia per git clone che check commit. In generale i valori di ritorno degli script lanciati con system() sono i seguenti:
+// 1: errore
+// 0: non ho fatto niente (es. non ho nulla da clonare perché la repo esiste già oppure non ho pullato niente di nuovo)
+// 2: ho fatto qualcosa (es. ho clonato la repo o ho fatto il pull di un nuovo commit)
+// Quando si verificano invece errori esternamente allo script (ma sempre in questa funzione), ritorno -1.
 int execute_embedded_script(
     const char* script_content, 
     const char* arg1, 
@@ -14,6 +19,7 @@ int execute_embedded_script(
     const char* arg3,
     const char* arg4,
     const char* arg5,
+    const char* versioning_file,
     FILE* log_fp
 ) {
     char temp_script_path[] = "/tmp/ci_script_XXXXXX";
@@ -41,11 +47,11 @@ int execute_embedded_script(
     char command[MAX_COMMAND_LEN];
 
     if (arg4 == NULL) {
-        // Se arg4 è NULL, eseguo lo script con 3 argomenti in quanto sono sicuro che sarà gitClone
-        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3);
+        // Se arg4 è NULL, eseguo lo script con 4 (3 + versioning_file) argomenti in quanto sono sicuro che sarà gitClone
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3, versioning_file);
     } else {
-        // Altrimenti si tratta di checkCommit
-        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3, arg4, arg5);
+        // Altrimenti si tratta di checkCommit (6 argomenti = 5 + versioning_file)
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3, arg4, arg5, versioning_file);
     }
 
     int status = system(command);
@@ -67,6 +73,8 @@ int execute_embedded_script(
 }
 
 // Funzione helper per creare, scrivere, rendere eseguibile e poi rimuovere uno script temporaneo all'interno di un chroot
+// Nota: a differenza della funzione precedente, questa ritorna solo 0 (successo) o 1 (errore) in quanto gli script eseguiti (chrootSetup, compile, copySrc, removeSrcCopy)
+// non devono restituire valori particolari per l'esecuzione di altre operazioni
 int execute_embedded_script_for_thread(
     const char* arch,
     const char* script_content,

@@ -18,7 +18,7 @@ abs_chroot_log_file_path="$chroot_path$chroot_logfile"
 
 # Controllo che il file di log esista
 if [ ! -f "$abs_chroot_log_file_path" ]; then
-    echo "From compile.sh: Error: Logfile does not exist: $abs_chroot_log_file_path"
+    echo "Error: From compile.sh: Logfile does not exist: $abs_chroot_log_file_path"
     exit 1
 fi
 
@@ -27,7 +27,7 @@ exec >> "$abs_chroot_log_file_path" 2>&1
 
 # Controllo che il chroot esista
 if [ ! -d "$chroot_path" ]; then
-    echo "From compile.sh: Error: Chroot path $chroot_path does not exist."
+    echo "Error: From compile.sh: Chroot path $chroot_path does not exist."
     exit 1
 fi
 
@@ -42,7 +42,7 @@ sudo chroot "$chroot_path" /bin/bash <<EOF
 
 # Controlla se la directory in cui metterò i binari nel chroot esiste
 if [ ! -d "$target_chroot_dir" ]; then
-    echo "From compile.sh (inside chroot): Error: Target chroot directory $target_chroot_dir does not exist in $arch chroot."
+    echo "Error: From compile.sh (inside chroot): Target chroot directory $target_chroot_dir does not exist in $arch chroot."
     exit 1
 fi
 
@@ -50,7 +50,7 @@ fi
 echo "From compile.sh (inside chroot): Installing build dependencies..."
 apt-get update
 if [ \$? -ne 0 ]; then
-    echo "From compile.sh (inside chroot): Error: Failed to update package list."
+    echo "Error: From compile.sh (inside chroot): Failed to update package list."
     exit 1
 fi
 apt install -y build-essential git devscripts debhelper dh-exec \\
@@ -60,14 +60,14 @@ apt install -y build-essential git devscripts debhelper dh-exec \\
 	        libvdeplug-dev libvdeslirp-dev
 
 if [ \$? -ne 0 ]; then
-    echo "From compile.sh (inside chroot): Error: Failed to install build dependencies."
+    echo "Error: From compile.sh (inside chroot): Failed to install build dependencies."
     exit 1
 fi
 
 # Mi sposto nella directory di libslirp source dentro il chroot
 cd "$libslirp_chroot_src_dir"
 if [ \$? -ne 0 ]; then
-    echo "From compile.sh (inside chroot): Error: Failed to change directory to $libslirp_chroot_src_dir."
+    echo "Error: From compile.sh (inside chroot): Failed to change directory to $libslirp_chroot_src_dir."
     exit 1
 fi
 
@@ -75,22 +75,22 @@ fi
 echo "From compile.sh (inside chroot): Compiling libslirp..."
 meson setup build --default-library=static
 if [ \$? -ne 0 ]; then
-    echo "From compile.sh (inside chroot): Error: Failed to set up meson build for libslirp."
+    echo "Error: From compile.sh (inside chroot): Failed to set up meson build for libslirp."
     exit 1
 fi
 ninja -C build
 if [ \$? -ne 0 ]; then
-    echo "From compile.sh (inside chroot): Error: Failed to build libslirp."
+    echo "Error: From compile.sh (inside chroot): Failed to build libslirp."
     exit 1
 fi
 ninja -C build install
 if [ \$? -ne 0 ]; then
-    echo "From compile.sh (inside chroot): Error: Failed to install libslirp."
+    echo "Error: From compile.sh (inside chroot): Failed to install libslirp."
     exit 1
 fi
 rm -rf build
 if [ \$? -ne 0 ]; then
-    echo "From compile.sh (inside chroot): Error: Failed to remove build directory for libslirp."
+    echo "Error: From compile.sh (inside chroot): Failed to remove build directory for libslirp."
     exit 1
 fi
 echo "From compile.sh (inside chroot): libslirp compiled and installed successfully."
@@ -98,7 +98,7 @@ echo "From compile.sh (inside chroot): libslirp compiled and installed successfu
 # Mi sposto nella directory di sshlirp source dentro il chroot
 cd "$sshlirp_chroot_src_dir"
 if [ \$? -ne 0 ]; then
-    echo "From compile.sh (inside chroot): Error: Failed to change directory to $sshlirp_chroot_src_dir."
+    echo "Error: From compile.sh (inside chroot): Failed to change directory to $sshlirp_chroot_src_dir."
     exit 1
 fi
 
@@ -115,11 +115,11 @@ if [ "$arch" = "riscv64" ]; then
         echo "From compile.sh (inside chroot): fake.c found, modifying CMakeLists.txt..."
         sed -i 's/add_executable(sshlirp sshlirp.c libvdeslirp.c libvdestream.c autoopt.c)/add_executable(sshlirp sshlirp.c libvdeslirp.c libvdestream.c autoopt.c fake.c)/' CMakeLists.txt
         if [ \$? -ne 0 ]; then
-            echo "From compile.sh (inside chroot): Error: Failed to modify CMakeLists.txt."
+            echo "Error: From compile.sh (inside chroot): Failed to modify CMakeLists.txt."
             exit 1
         fi
     else
-        echo "From compile.sh (inside chroot): Warning: fake.c not found, skipping modification of CMakeLists.txt."
+        echo "Warning: From compile.sh (inside chroot): fake.c not found, skipping modification of CMakeLists.txt."
     fi
 fi
 
@@ -127,28 +127,28 @@ fi
 mkdir -p build
 cd build
 if [ \$? -ne 0 ]; then
-    echo "From compile.sh (inside chroot): Error: Failed to create and change directory to build."
+    echo "Error: From compile.sh (inside chroot): Failed to create and change directory to build."
     exit 1
 fi
 
 # Configuro il progetto con CMake
 cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$target_chroot_dir" -DCMAKE_EXE_LINKER_FLAGS="-static"
 if [ \$? -ne 0 ]; then
-    echo "From compile.sh (inside chroot): Error: Failed to configure CMake for sshlirp."
+    echo "Error: From compile.sh (inside chroot): Failed to configure CMake for sshlirp."
     exit 1
 fi
 
 # Compilo il progetto
 make
 if [ \$? -ne 0 ]; then
-    echo "From compile.sh (inside chroot): Error: Failed to build sshlirp."
+    echo "Error: From compile.sh (inside chroot): Failed to build sshlirp."
     exit 1
 fi
 
 # Installo il progetto
 make install
 if [ \$? -ne 0 ]; then
-    echo "From compile.sh (inside chroot): Error: Failed to install sshlirp."
+    echo "Error: From compile.sh (inside chroot): Failed to install sshlirp."
     exit 1
 fi
 
@@ -156,23 +156,23 @@ fi
 cd ..
 rm -rf build
 if [ \$? -ne 0 ]; then
-    echo "From compile.sh (inside chroot): Error: Failed to remove build directory for sshlirp."
+    echo "Error: From compile.sh (inside chroot): Failed to remove build directory for sshlirp."
     exit 1
 fi
 
 # Verifico che il binario sia stato installato correttamente e che sia un eseguibile statico. Infine lo
 # rinomino come sshlirp-<arch>
 if [ ! -f "$target_chroot_dir/bin/sshlirp" ]; then
-    echo "From compile.sh (inside chroot): Error: Expected binary sshlirp not found in $target_chroot_dir/bin."
+    echo "Error: From compile.sh (inside chroot): Expected binary sshlirp not found in $target_chroot_dir/bin."
     exit 1
 fi
 if ! file "$target_chroot_dir/bin/sshlirp" | grep -q "statically linked"; then
-    echo "From compile.sh (inside chroot): Error: $target_chroot_dir/bin/sshlirp is not a statically linked executable."
+    echo "Error: From compile.sh (inside chroot): $target_chroot_dir/bin/sshlirp is not a statically linked executable."
     exit 1
 fi
 mv "$target_chroot_dir/bin/sshlirp" "$target_chroot_dir/bin/sshlirp-$arch"
 if [ \$? -ne 0 ]; then
-    echo "From compile.sh (inside chroot): Error: Failed to rename sshlirp binary to sshlirp-$arch."
+    echo "Error: From compile.sh (inside chroot): Failed to rename sshlirp binary to sshlirp-$arch."
     exit 1
 fi
 
@@ -181,7 +181,7 @@ exit 0
 EOF
 
 if [ $? -ne 0 ]; then
-    echo "From compile.sh: Error: Script inside chroot failed."
+    echo "Error: From compile.sh: Script inside chroot failed."
     exit 1
 fi
 

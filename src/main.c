@@ -89,6 +89,7 @@ int main() {
     char *sshlirp_repo_url = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *libslirp_repo_url = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *main_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
+    char *versioning_file = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *target_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *sshlirp_source_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *libslirp_source_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
@@ -107,6 +108,7 @@ int main() {
             sshlirp_repo_url, 
             libslirp_repo_url, 
             main_dir,
+            versioning_file,
             target_dir, 
             sshlirp_source_dir,
             libslirp_source_dir,
@@ -129,7 +131,7 @@ int main() {
         pid_t old_pid;
         if (fscanf(pid_fp_check, "%d", &old_pid) == 1) {
             if (kill(old_pid, 0) == 0) {
-                fprintf(stderr, "Errore: sshlirp_ci è già in esecuzione con PID %d.\n", old_pid);
+                fprintf(stderr, "Error: sshlirp_ci è già in esecuzione con PID %d.\n", old_pid);
                 fclose(pid_fp_check);
                 return 1;
             }
@@ -156,7 +158,11 @@ int main() {
     // Registra la funzione di cleanup all'uscita
     atexit(cleanup_daemon_files);
 
-    // 3. Creo la directory fondamentale (/home/sshlirpCI) e la directory e il file di log principale (/home/sshlirpCI/log/main_sshlirp.log) se non esistono
+    // 3. Creo file principali (se non esistono):
+    // - la directory fondamentale (/home/sshlirpCI)
+    // - la directory e il file di log principale (home/sshlirpCI/log e home/sshlirpCI/log/main_sshlirp.log)
+    // - il file di versioning (/home/sshlirpCI/versions.txt)
+
     // /home/sshlirpCI
     if (access(main_dir, F_OK) == -1) {
         if (mkdir(main_dir, 0755) == -1) {
@@ -164,6 +170,13 @@ int main() {
             return 1;
         }
     }
+    // /home/sshlirpCI/versions.txt
+    FILE* versioning_fp = fopen(versioning_file, "a");
+    if (!versioning_fp) {
+        perror("Error opening/creating versioning file");
+        return 1;
+    }
+    fclose(versioning_fp);
     // /home/sshlirpCI/log
     char *log_dir = get_parent_dir(log_file);
     if (!log_dir) {
@@ -188,16 +201,9 @@ int main() {
     setvbuf(log_fp, NULL, _IOLBF, 0);
     // non chiudo log_fp qui, lo chiuderò alla fine del main, in quanto mi serve per scrivere i log del demone
 
-/*     // 4. Reindirizzo stdout e stderr al file di log principale //commentato perchè con freopen non funziona con più thread
-    if (freopen(log_file, "a", stdout) == NULL) {
-        exit(EXIT_FAILURE);
-    }
-    if (freopen(log_file, "a", stderr) == NULL) {
-        exit(EXIT_FAILURE);
-    } */
-
     int round = 0;
-    int new_commit = -2;
+    commit_status_t initial_check = {1, NULL};
+    commit_status_t new_commit = {1, NULL};
 
     // 5. Avvio il loop principale nel demone
     while (1) {
@@ -212,20 +218,24 @@ int main() {
             log_time(log_fp);
             fprintf(log_fp, "Avvio del demone per la prima volta...\n");
 
+            initial_check = check_host_dirs(target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, sshlirp_repo_url, libslirp_repo_url, thread_log_dir, log_fp, versioning_file);
+
             // Nota: questa funzione non fa nulla se le dirs sono già esistenti e se esiste già la repo git (possibile in caso di crash o interruzione)
-            if(check_host_dirs(target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, sshlirp_repo_url, libslirp_repo_url, thread_log_dir, log_fp) == 1) {
-                fprintf(log_fp, "Errore durante la ricerca o creazione delle directories dell'host, del file di log o durante la clonazione dei repository.\n");
+            if (initial_check.status == 1) {
+                fprintf(log_fp, "Error: Errore durante la ricerca o creazione delle directories dell'host, del file di log o durante la clonazione dei repository.\n");
                 terminate_daemon_flag = 1;
                 break;
             }
         }
 
-        if (round > 0) {
-            new_commit = check_new_commit(sshlirp_source_dir, sshlirp_repo_url, libslirp_source_dir, libslirp_repo_url, log_file, log_fp);
+        // 6.1. Se non è il primo avvio (e quindi avevo già clonato e ho atteso poll_interval secondi) o se la repo era già clonata
+        // (quindi magari c'è stato un crash o un'interruzione), tento di pullare eventuali nuovi commit
+        if (round > 0 || initial_check.status == 0) {
+            new_commit = check_new_commit(sshlirp_source_dir, sshlirp_repo_url, libslirp_source_dir, libslirp_repo_url, log_file, log_fp, versioning_file);
         }
 
-        // 7. Se è il primo avvio o se ho trovato nuovi commit, preparo i thread per la build
-        if (round == 0 || new_commit == 2) {
+        // 7. Se è il primo avvio e ho effettivamente clonato o se ho trovato nuovi commit, preparo i thread per la build
+        if ((round == 0 && initial_check.status == 2) || new_commit.status == 2) {
 
             if (round == 0) {
                 fprintf(log_fp, "Primo avvio del demone, è il momento di lanciare i thread...\n");
@@ -284,7 +294,7 @@ int main() {
                 snprintf(args[i].thread_log_file, sizeof(args[i].thread_log_file), "%s/%s-thread.log", thread_log_dir, archs_list[i]);
 
                 if (pthread_create(&threads[i], NULL, build_worker, &args[i]) != 0) {
-                    fprintf(log_fp, "Errore durante la creazione del thread per l'architettura %s.\n", args[i].arch);
+                    fprintf(log_fp, "Error: Errore durante la creazione del thread per l'architettura %s.\n", args[i].arch);
                     return 1;
                 } else {
                     fprintf(log_fp, "Thread creato con successo per l'architettura %s.\n", args[i].arch);
@@ -299,12 +309,12 @@ int main() {
                 int successful_join = pthread_join(threads[i], &thread_return_value);
 
                 if (successful_join != 0) {
-                    fprintf(log_fp, "Errore durante il join del thread per %s\n", args[i].arch);
+                    fprintf(log_fp, "Error: Errore durante il join del thread per %s\n", args[i].arch);
                 } else {
                     if (thread_return_value != NULL) {
                         thread_result_t *worker_result = (thread_result_t *)thread_return_value;
                         if (worker_result->status != 0) {
-                            fprintf(log_fp, "Thread per %s terminato con errore: %s\n", args[i].arch, worker_result->error_message ? worker_result->error_message : "Nessun messaggio di errore.");
+                            fprintf(log_fp, "Error: Thread per %s terminato con errore: %s\n", args[i].arch, worker_result->error_message ? worker_result->error_message : "Nessun messaggio di errore.");
                         } else {
                             fprintf(log_fp, "Thread per %s terminato con successo.\n", args[i].arch);
                         }
@@ -362,7 +372,7 @@ int main() {
                         fclose(thread_log_truncate);
                         fprintf(log_fp, "Log del thread %s (Host) pulito con successo: %s\n", args[i].arch, thread_log_path_on_host);
                     } else {
-                        fprintf(log_fp, "Errore nella pulizia (truncating) del log del thread per l'architettura %s: %s. Errore: %s\n", args[i].arch, thread_log_path_on_host, strerror(errno));
+                        fprintf(log_fp, "Error: Errore nella pulizia (truncating) del log del thread per l'architettura %s: %s. Errore: %s\n", args[i].arch, thread_log_path_on_host, strerror(errno));
                     }
 
                     if (access(thread_log_path_in_chroot, F_OK) == 0) {
@@ -371,7 +381,7 @@ int main() {
                             fclose(thread_chroot_log_truncate);
                             fprintf(log_fp, "Log del thread %s (Chroot) pulito con successo: %s\n", args[i].arch, thread_log_path_in_chroot);
                         } else {
-                            fprintf(log_fp, "Errore nella pulizia (truncating) del log del thread per l'architettura %s (Chroot): %s. Errore: %s\n", args[i].arch, thread_log_path_in_chroot, strerror(errno));
+                            fprintf(log_fp, "Error: Errore nella pulizia (truncating) del log del thread per l'architettura %s (Chroot): %s. Errore: %s\n", args[i].arch, thread_log_path_in_chroot, strerror(errno));
                         }
                     }
 
@@ -380,38 +390,53 @@ int main() {
                 }
             }
 
-            // 7.5. Sposto i binari compilati nella directory target
+            // 7.5. Sposto i binari compilati in target_dir/initial_check.new_release (oppure in target_dir/new_commit.new_release)
             for (int i = 0; i < num_archs; i++) {
 
-                char source_bin_path[MAX_CONFIG_ATTR_LEN * 3 + 10];
                 char expected_binary_name[MAX_CONFIG_ATTR_LEN];
+                char source_bin_path[MAX_CONFIG_ATTR_LEN * 3 + 10];
 
                 snprintf(expected_binary_name, sizeof(expected_binary_name), "sshlirp-%s", args[i].arch);
                 snprintf(source_bin_path, sizeof(source_bin_path), "%s%s/bin/%s", args[i].chroot_path, args[i].thread_chroot_target_dir, expected_binary_name);
 
-                char final_target_path[MAX_CONFIG_ATTR_LEN*2];
-                snprintf(final_target_path, sizeof(final_target_path), "%s/%s", target_dir, expected_binary_name);
+                char final_target_dir[MAX_CONFIG_ATTR_LEN*2];
+                char final_target_path[MAX_CONFIG_ATTR_LEN*3];
 
+                if (new_commit.status == 2) {
+                    snprintf(final_target_dir, sizeof(final_target_dir), "%s/%s", target_dir, new_commit.new_release);
+                } else {
+                    snprintf(final_target_dir, sizeof(final_target_dir), "%s/%s", target_dir, initial_check.new_release);
+                }
+
+                if (access(final_target_dir, F_OK) == -1) {
+                    if (mkdir(final_target_dir, 0755) != 0) {
+                        fprintf(log_fp, "Error: Errore durante la creazione della directory %s per l'architettura %s. Errore: %s. I binari per questa architettura verranno inseriti nella parent directory della release.\n", final_target_dir, args[i].arch, strerror(errno));
+                        snprintf(final_target_path, sizeof(final_target_path), "%s/%s", target_dir, expected_binary_name);
+                    } else {
+                        fprintf(log_fp, "Directory %s creata con successo per la nuova release (architettura %s).\n", final_target_dir, args[i].arch);
+                        snprintf(final_target_path, sizeof(final_target_path), "%s/%s", final_target_dir, expected_binary_name);
+                    }
+                } else {
+                    fprintf(log_fp, "Directory %s già esistente per la release (architettura %s).\n", final_target_dir, args[i].arch);
+                    snprintf(final_target_path, sizeof(final_target_path), "%s/%s", final_target_dir, expected_binary_name);
+                }
 
                 if (access(source_bin_path, F_OK) == 0) {
-                    // soluzione temporanea: se il file esiste già, è una vecchia versione quindi la rimuovo. (sarebbe meglio gestire le release con i tags:
-                    // se c'è un commit dello stesso tag, sovrascrivo nella stessa dir; se invece c'è un nuovo commit corrispondnete a un nuovo tag allora
-                    // creo una nuova directory e scrivo lì -> approccio complicato probabilmente dovresti modificare anche la struttura args)
                     if (access(final_target_path, F_OK) == 0) {
                         if (remove(final_target_path) != 0) {
-                            fprintf(log_fp, "Errore durante la rimozione del vecchio binario %s per l'architettura %s. Errore: %s\n", final_target_path, args[i].arch, strerror(errno));
+                            fprintf(log_fp, "Error: Errore durante la rimozione del vecchio binario %s per l'architettura %s. Errore: %s\n", final_target_path, args[i].arch, strerror(errno));
                         } else {
                             fprintf(log_fp, "Vecchio binario per l'architettura %s rimosso con successo.\n", args[i].arch);
                         }
                     }
 
                     if (rename(source_bin_path, final_target_path) != 0) {
-                        fprintf(log_fp, "Errore durante lo spostamento del binario %s a %s per l'architettura %s. Errore: %s\n", source_bin_path, final_target_path, args[i].arch, strerror(errno));
+                        fprintf(log_fp, "Error: Errore durante lo spostamento del binario %s a %s per l'architettura %s. Errore: %s\n", source_bin_path, final_target_path, args[i].arch, strerror(errno));
                     } else {
                         fprintf(log_fp, "Binario per l'architettura %s spostato con successo in %s.\n", args[i].arch, final_target_path);
                     }
                 } else {
-                    fprintf(log_fp, "Errore: Binario sorgente %s non trovato per l'architettura %s. Spostamento saltato.\n", source_bin_path, args[i].arch);
+                    fprintf(log_fp, "Error: Binario sorgente %s non trovato per l'architettura %s. Spostamento saltato.\n", source_bin_path, args[i].arch);
                 }
             }
 
@@ -419,15 +444,69 @@ int main() {
             log_time(log_fp);
             fprintf(log_fp, "Build completata per tutte le architetture.\n");
 
-        } else if (new_commit == 0) {
+        }/*  else if (round == 0 && initial_check.status == 1 && new_commit.status == 1) {
+            // impossibile: initial_check.status == 1 significherebbe che ho avuto errore durante il check_host_dirs,
+            // quindi non posso trovarmi qua.
+            // Nota: questo scenario potrebbe sembrare essere associato anche a un'esecuzione "vuota" (sono arrivato qua con ancora i valori di
+            // inizializzazione). Ma ciò non è possibile perché con round == 0 eseguo check_host_dirs, che lascia 
+            // initial_check.status == 1 solo se fallisce, ma in tal caso si uscirebbe dal ciclo e non si potrebbe mai arrivare qua.
 
-            // printf("Nessun nuovo commit rilevato, attendo...\n");
-
-        } else if (new_commit == 1) {
-
-            fprintf(log_fp, "Errore durante il controllo dei nuovi commit.\n");
+        } else if (round == 0 && initial_check.status == 0 && new_commit.status == 1) {
+            // Al primo avvio ho trovato già tutto clonato e ho provato a pullare ma c'è stato un errore.
+            // In questo caso devo fare break (un errore nel pull è critico, non posso continuare a girare il demone)
+            fprintf(log_fp, "Errore durante check_new_commit al primo avvio: sono state trovate repo già clonate ma il pull ha fallito. Esco dal demone...\n");
             break;
 
+        } else if (round > 0 && initial_check.status == 1 && new_commit.status == 1) {
+            // impossibile: initial_check.status == 1 significherebbe che ho avuto errore durante il check_host_dirs,
+            // quindi non posso trovarmi qua. Poi oltretutto round > 0, in questo contesto, è paradossale
+
+        } else if (round > 0 && initial_check.status == 0 && new_commit.status == 1) {
+            // Al primo avvio avevo registrato che le dirs sull'host erano già presenti e l'host era già correttamente configurato (c'era stato un'interruzione),
+            // quindi sono andato avanti con i round (durante i quali anche i check_new_commit sono stati effettuati correttamente).
+            // A questo punto però è stato riscontrato un errore durante il pull di questo round e quindi devo uscire dal demone
+            fprintf(log_fp, "Errore durante check_new_commit: all'avvio erano state trovate repo già clonate, sono stati effettuati %d round correttamente ma al round %d il pull ha fallito. Esco dal demone...\n", round - 1, round);
+            break;
+
+        } else if (round > 0 && initial_check.status == 2 && new_commit.status == 1) {
+            // Al primo avvio avevo clonato correttamente le repo, poi sono andato avanti con i round (durante i quali anche i check_new_commit sono stati effettuati correttamente),
+            // ma a questo punto ho riscontrato un errore durante check_new_commit; devo quindi uscire dal demone
+            fprintf(log_fp, "Errore durante check_new_commit: al primo avvio le repo erano state clonate correttamente, sono stati effettuati %d round correttamente ma al round %d il pull ha fallito. Esco dal demone...\n", round - 1, round);
+            break;
+
+        } else if (round == 0 && initial_check.status == 1 && new_commit.status == 0) {
+            // impossibile: initial_check.status == 1 significherebbe che ho avuto errore durante il check_host_dirs,
+            // quindi non posso trovarmi qua. Anche perché oltretutto new_commit_status == 0 vorrebbe dire che ho eseguit
+            // il check_new_commit nonostante l'errore di check_host_dirs
+
+        } else if (round == 0 && initial_check.status == 0 && new_commit.status == 0) {
+            // Al primo avvio è stato trovato tutto al suo posto nell'host (le dirs e le repo erano già presenti),
+            // è stato quindi effettuato il check_new_commit ma non sono stati trovati nuovi commit.
+            // Questo è uno dei casi in cui devo semplicemnte andare avanti
+
+        } else if (round > 0 && initial_check.status == 1 && new_commit.status == 0) {
+            // impossibile: initial_check.status == 1 significherebbe che ho avuto errore durante il check_host_dirs,
+            // quindi non posso trovarmi qua. Poi oltretutto round > 0 e new_commit_status == 0 in questo contesto, sono paradossali
+
+        } else if (round > 0 && initial_check.status == 0 && new_commit.status == 0) {
+            // Al primo avvio era stato trovato tutto al suo posto nell'host (le dirs e le repo erano già presenti),
+            // sono stati poi effettuati diversi round e l'ultimo check_new_commit non ha trovato nuovi commit...
+            // Anche qui: tutto normale, vado avanti
+
+        } else if (round > 0 && initial_check.status == 2 && new_commit.status == 0) {
+            // Al primo avvio avevo clonato correttamente le repo, sono poi andato avanti con i round (durante i quali anche i check_new_commit sono stati effettuati correttamente),
+            // e a questo punto ho fatto di nuovo check_new_commit ma non sono stati trovati nuovi commit.
+            // Anche in questo caso non devo fare altro che andare avanti
+
+        } */
+
+        // Secondo le considerazioni precedenti è possibile riassumere i possibili esiti dei check nei seguenti casi:
+        else if (new_commit.status == 1) {
+            fprintf(log_fp, "Error: Errore durante check_new_commit. Esco dal demone...\n");
+            break;
+        }
+        else {                                                  // new_commit.status == 0
+            // nessun commit nuovo trovato, vado avanti
         }
         
         if (terminate_daemon_flag) {

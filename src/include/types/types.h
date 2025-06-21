@@ -7,6 +7,7 @@
 #define CONFIG_SSHLIRP_KEY "SSHLIRP_REPO_URL="
 #define CONFIG_LIBSLIRP_KEY "LIBSLIRP_REPO_URL="
 #define CONFIG_MAINDIR_KEY "MAIN_DIR="
+#define CONFIG_VERSION_FILE_KEY "VERSIONING_FILE="
 #define CONFIG_TARGETDIR_KEY "TARGET_DIR="
 #define CONFIG_SSHLIRP_SOURCE_DIR_KEY "SSHLIRP_SOURCE_DIR="
 #define CONFIG_LIBSLIRP_SOURCE_DIR_KEY "LIBSLIRP_SOURCE_DIR="
@@ -21,6 +22,7 @@
 #define MAX_CONFIG_LINE_LEN 512
 #define MAX_CONFIG_ATTR_LEN 256
 #define MAX_COMMAND_LEN 2048
+#define MAX_VERSIONING_LINE_LEN 128
 
 typedef struct {
     int pull_round;
@@ -37,8 +39,8 @@ typedef struct {
 } thread_args_t;
 
 typedef struct {
-    int new_commit;
-    int new_release;
+    int status;
+    char *new_release;
 } commit_status_t;
 
 typedef struct {

@@ -154,6 +154,7 @@ static void free_resources(
     char* sshlirp_repo_url, 
     char* libslirp_repo_url, 
     char* main_dir, 
+    char* versioning_file,
     char* target_dir, 
     char* sshlirp_source_dir, 
     char* libslirp_source_dir, 
@@ -166,6 +167,7 @@ static void free_resources(
     free(sshlirp_repo_url);
     free(libslirp_repo_url);
     free(main_dir);
+    free(versioning_file);
     free(target_dir);
     free(sshlirp_source_dir);
     free(libslirp_source_dir);
@@ -182,6 +184,7 @@ int conf_vars_loader(
     char* sshlirp_repo_url, 
     char* libslirp_repo_url, 
     char* main_dir, 
+    char* versioning_file,
     char* target_dir, 
     char* sshlirp_source_dir, 
     char* libslirp_source_dir, 
@@ -193,154 +196,207 @@ int conf_vars_loader(
 
         load_architectures(archs, num_archs);
         if (*num_archs == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
             fprintf(stderr, "No architectures found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_SSHLIRP_KEY, sshlirp_repo_url);
         if (strlen(sshlirp_repo_url) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
             fprintf(stderr, "SSHLIRP_REPO_URL not found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_LIBSLIRP_KEY, libslirp_repo_url);
         if (strlen(libslirp_repo_url) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
             fprintf(stderr, "LIBSLIRP_REPO_URL not found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_MAINDIR_KEY, main_dir);
         if (strlen(main_dir) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
-            fprintf(stderr, "TARGET_DIR not found in configuration.\n");
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            fprintf(stderr, "MAINDIR not found in configuration.\n");
+            return 1;
+        }
+        load_path(CONFIG_VERSION_FILE_KEY, versioning_file);
+        if (strlen(versioning_file) == 0) {
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            fprintf(stderr, "VERSIONING_FILE not found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_TARGETDIR_KEY, target_dir);
         if (strlen(target_dir) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
             fprintf(stderr, "TARGET_DIR not found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_SSHLIRP_SOURCE_DIR_KEY, sshlirp_source_dir);
         if (strlen(sshlirp_source_dir) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
             fprintf(stderr, "SSHLIRP_SOURCE_DIR not found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_LIBSLIRP_SOURCE_DIR_KEY, libslirp_source_dir);
         if (strlen(libslirp_source_dir) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
             fprintf(stderr, "LIBSLIRP_SOURCE_DIR not found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_LOG_KEY, log_file);
         if (strlen(log_file) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
             fprintf(stderr, "LOG_FILE not found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_THREAD_CHROOT_TARGET_DIR_KEY, thread_chroot_target_dir);
         if (strlen(thread_chroot_target_dir) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
             fprintf(stderr, "THREAD_CHROOT_TARGET_DIR not found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_THREAD_CHROOT_LOG_FILE_KEY, thread_chroot_log_file);
         if (strlen(thread_chroot_log_file) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
             fprintf(stderr, "THREAD_CHROOT_LOG_FILE not found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_THREAD_LOG_DIR_KEY, thread_log_dir);
         if (strlen(thread_log_dir) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
             fprintf(stderr, "THREAD_LOG_DIR not found in configuration.\n");
             return 1;
         }
         load_poll_interval(poll_interval);
         if (*poll_interval <= 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
             fprintf(stderr, "POLL_INTERVAL not found or invalid in configuration.\n");
             return 1;
         }
         return 0;
     }
 
-// Funzione per verificare se le directory host esistono o crearle e clonare i repository
-int check_host_dirs(char* target_dir, char* sshlirp_source_dir, char* libslirp_source_dir, char* log_file, char* sshlirp_repo_url, char* libslirp_repo_url, char* thread_log_dir, FILE* log_fp) {
+// Funzione per ottenere l'ultima release dal file di versioning, salvarla in una struttura commit_status_t e stampare logs su un log_fp
+static int get_last_release(const char* versioning_file, commit_status_t* result, FILE* log_fp) {
+    FILE* versioning_fp = fopen(versioning_file, "r");
+    if (!versioning_fp) {
+        fprintf(log_fp, "Error: Error opening versioning file: %s\n", strerror(errno));
+        return 1;
+    }
+    char line[MAX_VERSIONING_LINE_LEN];
+    char last_line[MAX_VERSIONING_LINE_LEN] = "";
 
+    while (fgets(line, sizeof(line), versioning_fp) != NULL) {
+        strcpy(last_line, line);
+    }
+
+    if (strlen(last_line) > 0) {
+        last_line[strcspn(last_line, "\n")] = 0;
+        result->new_release = strdup(last_line);
+    } else {
+        result->new_release = strdup("unstable");
+    }
+    fclose(versioning_fp);
+    return 0;
+}
+
+// Funzione per verificare se le directory host esistono o crearle e clonare i repository
+// Nota: questa funzione lancia uno script e in base anche ai valori di ritorno di questo, può ritornare i seguenti valori:
+// 1: errore
+// 0: non è stato effettuato il clone, in quanto esisteva già la repo
+// 2: ho effettuato il clone
+commit_status_t check_host_dirs(char* target_dir, char* sshlirp_source_dir, char* libslirp_source_dir, char* log_file, char* sshlirp_repo_url, char* libslirp_repo_url, char* thread_log_dir, FILE* log_fp, char* versioning_file) {
+    commit_status_t result = {1, NULL};
     // 1. Controllo l'esistenza e, se necessario, creo le directories e il file di log nella macchina host
 
     // es: /home/sshlirpCI/thread-binaries
     if (access(target_dir, F_OK) == -1) {
         if (mkdir(target_dir, 0755) == -1) {
-            fprintf(log_fp, "Error creating target directory: %s\n", strerror(errno));
-            return 1;
+            fprintf(log_fp, "Error: Error creating target directory: %s\n", strerror(errno));
+            return result;
         }
     }
 
     // es: /home/sshlirpCI/sshlirp
     if (access(sshlirp_source_dir, F_OK) == -1) {
         if (mkdir(sshlirp_source_dir, 0755) == -1) {
-            fprintf(log_fp, "Error creating SSHLIRP source directory: %s\n", strerror(errno));
-            return 1;
+            fprintf(log_fp, "Error: Error creating SSHLIRP source directory: %s\n", strerror(errno));
+            return result;
         }
     }
 
     // es: /home/sshlirpCI/libslirp
     if (access(libslirp_source_dir, F_OK) == -1) {
         if (mkdir(libslirp_source_dir, 0755) == -1) {
-            fprintf(log_fp, "Error creating LIBSLIRP source directory: %s\n", strerror(errno));
-            return 1;
+            fprintf(log_fp, "Error: Error creating LIBSLIRP source directory: %s\n", strerror(errno));
+            return result;
         }
     }
 
     // es: /home/sshlirpCI/log/threads (sono sicuro che la directory log esista già, creata in main.c)
     if (access(thread_log_dir, F_OK) == -1) {
         if (mkdir(thread_log_dir, 0755) == -1) {
-            fprintf(log_fp, "Error creating thread log directory: %s\n", strerror(errno));
-            return 1;
+            fprintf(log_fp, "Error: Error creating thread log directory: %s\n", strerror(errno));
+            return result;
         }
     }
 
     // 2. Clono le repo nei rispettivi percorsi -> lancio lo script incorporato gitClone.sh
     int script_status;
 
-    script_status = execute_embedded_script(git_clone_script_content, sshlirp_repo_url, sshlirp_source_dir, log_file, NULL, NULL, log_fp);
-    if (script_status != 0) {
-        fprintf(log_fp, "Error cloning sshlirp repository via embedded script. Script exit status: %d\n", script_status);
-        return 1;
+    script_status = execute_embedded_script(git_clone_script_content, sshlirp_repo_url, sshlirp_source_dir, log_file, NULL, NULL, versioning_file, log_fp);
+    if (script_status == 1 || script_status == -1) {
+        fprintf(log_fp, "Error: Error cloning sshlirp repository via embedded script. Script exit status: %d\n", script_status);
+        return result;
     }
 
-    script_status = execute_embedded_script(git_clone_script_content, libslirp_repo_url, libslirp_source_dir, log_file, NULL, NULL, log_fp);
-    if (script_status != 0) {
-        fprintf(log_fp, "Error cloning libslirp repository via embedded script. Script exit status: %d\n", script_status);
-        return 1;
+    // Nota: nel caso di git clone di libslirp non passo il versioning_file, perchè sennò lo script scriverebbe su esso l'ultima versione di libslirp
+    script_status = execute_embedded_script(git_clone_script_content, libslirp_repo_url, libslirp_source_dir, log_file, NULL, NULL, "", log_fp);
+    if (script_status == 1 || script_status == -1) {
+        fprintf(log_fp, "Error: Error cloning libslirp repository via embedded script. Script exit status: %d\n", script_status);
+        return result;
     }
 
-    return 0;
+    // Verifico il file di versioning di sshlirp
+    if (get_last_release(versioning_file, &result, log_fp) != 0) {
+        return result;
+    }
+
+    result.status = script_status;
+    return result;
 }
 
-int check_new_commit(char* sshlirp_source_dir, char* sshlirp_repo_url, char* libslirp_source_dir, char* libslirp_repo_url, char* log_file, FILE* log_fp) {
-    int script_status;
-
-    script_status = execute_embedded_script(check_commit_script_content, sshlirp_source_dir, sshlirp_repo_url, libslirp_source_dir, libslirp_repo_url, log_file, log_fp);
+// Funzione per controllare (e eventualmente pullare) nuovi commit nella repo di sshlirp dalla repo remota
+// Nota: questa funzione chiama uno script e, analogamente alla funzione check_host_dirs, può ritornare i seguenti valori:
+// 1: errore
+// 0: non sono stati trovati nuovi commit, la repo è già aggiornata
+// 2: sono stati trovati nuovi commit, la repo è stata aggiornata
+commit_status_t check_new_commit(char* sshlirp_source_dir, char* sshlirp_repo_url, char* libslirp_source_dir, char* libslirp_repo_url, char* log_file, FILE* log_fp, char* versioning_file) {
+    commit_status_t result = {1, NULL};
+    int script_status = execute_embedded_script(check_commit_script_content, sshlirp_source_dir, sshlirp_repo_url, libslirp_source_dir, libslirp_repo_url, log_file, versioning_file, log_fp);
 
     if (script_status == 1 || script_status == -1) {
-        fprintf(log_fp, "Error checking for new commits. Script exit status: %d\n", script_status);
-        return 1;
+        fprintf(log_fp, "Error: Error checking for new commits. Script exit status: %d\n", script_status);
+        return result;
     }
 
     if (script_status == 2) {
         fprintf(log_fp, "New commits for sshlirp detected and pulled.\n");
-        return 2;
+
+        // Leggo il file di versioning per ottenere l'ultima release
+        if (get_last_release(versioning_file, &result, log_fp) != 0) {
+            return result;
+        }
+
+        result.status = script_status;
+        return result;
     }
 
     if (script_status == 0) {
         fprintf(log_fp, "No new commits found for sshlirp.\n");
-        return 0;
+        result.status = script_status;
+        return result;
     }
 
     fprintf(log_fp, "Unexpected commit check status from script: %d\n", script_status);
-    return 1;
+    return result;
 }
