@@ -36,7 +36,17 @@ void *build_worker(void *arg_ptr) {
     if (args->pull_round == 0) {
         fprintf(thread_log_fp, "First run (pull_round 0). Checking and eventually setting up chroot for %s.\n", args->arch);
         
-        if (setup_chroot(args, thread_log_fp) != 0) {
+        // Ecco l'unico punto dell'intero programma in cui è necessario bloccare il mutex. Infatti ciò non viene fatto
+        // per motivi di accesso concorrente a risorse condivise (ogni thread durante tutto il processo opera su sui file "personali"), bensì per motivi di consumo
+        // di risorse computazionali. Infatti dopo diversi test ho notato che l'ultimo thread lanciato terminava lo script di chroot_setup con stato 126 (script trovato ma non eseguibile)
+        // in quanto gli altri thread lanciati per primi consumavano tutte le risorse di CPU disponibili non permettendo all'ultimo di eseguire lo script di chroot_setup
+        // che è infatti l'operazione più costosa.
+        // Con l'uso di questo lock si garantisce quindi l'assenza di race condition anche se a spese del tempo di esecuzione totale.
+        pthread_mutex_lock(args->chroot_setup_mutex);
+        int setup_status = setup_chroot(args, thread_log_fp);
+        pthread_mutex_unlock(args->chroot_setup_mutex);
+
+        if (setup_status != 0) {
             fprintf(thread_log_fp, "Failed to check/setup chroot for %s.\n", args->arch);
             char err_buf[MAX_CONFIG_ATTR_LEN*2];
             snprintf(err_buf, sizeof(err_buf), "Chroot check/setup failed for %s.", args->arch);

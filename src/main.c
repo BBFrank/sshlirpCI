@@ -98,6 +98,10 @@ int main() {
     char *thread_chroot_log_file = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *thread_log_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     int poll_interval = 0;
+    // Nota: il mutex sarà necessario solo per il setup del chroot, operazione molto dispendiosa che, se eseguita in parallelo
+    // per molte architetture, rischia l'accadimento di race conditions
+    pthread_mutex_t chroot_setup_mutex;
+    pthread_mutex_init(&chroot_setup_mutex, NULL);
 
     printf("Avvio di sshlirp_ci...\n");
     printf("Caricamento delle variabili di configurazione...\n");
@@ -292,6 +296,9 @@ int main() {
 
                 // Copia sicura del thread_log_file (ossia il log file su cui scriverà il thread quando non è nel chroot)
                 snprintf(args[i].thread_log_file, sizeof(args[i].thread_log_file), "%s/%s-thread.log", thread_log_dir, archs_list[i]);
+
+                // Assegnamento del mutex condiviso
+                args[i].chroot_setup_mutex = &chroot_setup_mutex;
 
                 if (pthread_create(&threads[i], NULL, build_worker, &args[i]) != 0) {
                     fprintf(log_fp, "Error: Errore durante la creazione del thread per l'architettura %s.\n", args[i].arch);
@@ -538,6 +545,8 @@ int main() {
     log_time(log_fp);
     fprintf(log_fp, "sshlirp_ci demone terminato.\n");
     fclose(log_fp);
+
+    pthread_mutex_destroy(&chroot_setup_mutex);
 
     // Libera la memoria allocata
     for (int i = 0; i < num_archs; i++) {

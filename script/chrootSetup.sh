@@ -28,13 +28,13 @@ if [ -d "$chroot_path/home" ]; then
 fi
 
 echo "From chrootSetup.sh: Running debootstrap first stage for $arch..."
-# Se siamo su riscv64 devo usare trixie come distro, non bookworm
-if [ "$arch" = "riscv64" ]; then
-    echo "From chrootSetup.sh: Using trixie as the distribution for architecture $arch."
-    sudo debootstrap --arch="$arch" --foreign trixie "$chroot_path" http://deb.debian.org/debian
-else
+# Se siamo su arm64 devo usare bookworm come distro, non trixie -> modificato da specifiche => utilizzare trixie per tutte le arches, ma non per arm64 in quanto trixie - unstable - blocca l'unpacking del base system su arm64
+if [ "$arch" = "arm64" ]; then
     echo "From chrootSetup.sh: Using bookworm as the distribution for architecture $arch."
     sudo debootstrap --arch="$arch" --foreign bookworm "$chroot_path" http://deb.debian.org/debian
+else
+    echo "From chrootSetup.sh: Using trixie as the distribution for architecture $arch."
+    sudo debootstrap --arch="$arch" --foreign trixie "$chroot_path" http://deb.debian.org/debian
 fi
 
 if [ $? -ne 0 ]; then

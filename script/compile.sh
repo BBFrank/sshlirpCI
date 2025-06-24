@@ -105,11 +105,11 @@ fi
 # Compilo sshlirp
 echo "From compile.sh (inside chroot): Compiling sshlirp..."
 
-# Se sono su riscv64 devo prima modificare il CMakeLists.txt per correggere l'importazione dei simboli
+# Se sono su trixie devo prima modificare il CMakeLists.txt per correggere l'importazione dei simboli
 # di sysprof (aggiungere fake.c - se esistente nella directory di sshlirp source - nell'add_executable(sshlirp sshlirp.c libvdeslirp.c libvdestream.c autoopt.c),
 # che quindi deve diventare: add_executable(sshlirp sshlirp.c libvdeslirp.c libvdestream.c autoopt.c fake.c)
-if [ "$arch" = "riscv64" ]; then
-    echo "From compile.sh (inside chroot): Modifying CMakeLists.txt for riscv64 architecture..."
+if [ "$arch" != "arm64" ]; then          <-- modificato da specifiche => utilizzare trixie per tutte le arches (non si può usare su arm64 in quanto trixie - unstable - blocca l'unpacking del base system su arm64)
+    echo "From compile.sh (inside chroot): Modifying CMakeLists.txt for trixie release..."
     # Controllo se fake.c esiste
     if [ -f "fake.c" ]; then
         echo "From compile.sh (inside chroot): fake.c found, modifying CMakeLists.txt..."

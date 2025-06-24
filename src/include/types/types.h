@@ -36,6 +36,7 @@ typedef struct {
     char thread_chroot_target_dir[MAX_CONFIG_ATTR_LEN];
     char thread_chroot_log_file[MAX_CONFIG_ATTR_LEN];
     char thread_log_file[MAX_CONFIG_ATTR_LEN];
+    pthread_mutex_t *chroot_setup_mutex;
 } thread_args_t;
 
 typedef struct {
