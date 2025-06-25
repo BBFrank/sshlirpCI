@@ -13,8 +13,22 @@ fi
 
 # Controllo che qemu static binary esista
 if [ ! -f "$qemu_static_bin" ]; then
-    echo "Error: From chrootSetup.sh: QEMU static binary $qemu_static_bin not found on host."
-    exit 1
+    echo "Warning: From chrootSetup.sh: symlink $qemu_static_bin not found on host. Getting original binary..."
+    qemu_arch=$arch
+    case "$arch" in
+        ("amd64") qemu_arch="x86_64" ;;
+        ("arm64") qemu_arch="aarch64" ;;
+        ("armhf") qemu_arch="arm" ;;
+        ("armel") qemu_arch="arm" ;;
+        ("ppc64el") qemu_arch="ppc64le" ;;
+    esac
+    
+    qemu_static_bin="/usr/bin/qemu-${qemu_arch}-static"
+
+    if [ ! -f "$qemu_static_bin" ]; then
+        echo "Error: From chrootSetup.sh: $qemu_static_bin binary not found on host. Please install qemu-user-static package."
+        exit 1
+    fi
 fi
 
 # Reindirizza output al logfile (nota: questo è ancora il log file sull'host, non dentro il chroot)

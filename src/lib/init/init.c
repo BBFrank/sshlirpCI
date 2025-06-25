@@ -13,7 +13,7 @@
 static void load_architectures(char** archs_list, int* num_archs_out) {
     FILE* fp = fopen(DEFAULT_CONFIG_PATH, "r");
     if (!fp) {
-        perror("Error opening config file");
+        perror("Error: Error opening config file, please check the path in /src/include/types/types.h, row 6.");
         *num_archs_out = 0;
         return;
     }
@@ -97,7 +97,7 @@ static void load_architectures(char** archs_list, int* num_archs_out) {
 static void load_path(const char* key, char* path) {
     FILE* fp = fopen(DEFAULT_CONFIG_PATH, "r");
     if (!fp) {
-        perror("Error opening config file");
+        perror("Error: Error opening config file, please check the path in /src/include/types/types.h, row 6.");
         path[0] = '\0';
         return;
     }
@@ -121,7 +121,7 @@ static void load_path(const char* key, char* path) {
 static void load_poll_interval(int* poll_interval) {
     FILE* fp = fopen(DEFAULT_CONFIG_PATH, "r");
     if (!fp) {
-        perror("Error opening config file");
+        perror("Error: Error opening config file, please check the path in /src/include/types/types.h, row 6.");
         *poll_interval = 0;
         return;
     }
