@@ -40,7 +40,7 @@ static void update_daemon_state(const char *state) {
 static void daemonize() {
     pid_t pid;
 
-    // Mi forko: il padre termina e il figlio avrà il compito di avviare il demone
+    // Fork off: the parent terminates and the child will be responsible for starting the daemon
     pid = fork();
     if (pid < 0) {
         exit(EXIT_FAILURE);
@@ -49,14 +49,14 @@ static void daemonize() {
         exit(EXIT_SUCCESS);
     }
 
-    // Creo una nuova sessione per il demone
+    // Create a new session for the daemon
     if (setsid() < 0) {
         exit(EXIT_FAILURE);
     }
 
     signal(SIGTERM, sigterm_handler);
 
-    // Mi forko nuovamente perchè così sarò figlio del session leader e sarò sicuro di non aver accesso al terminale
+    // Fork again so I'll be a child of the session leader and I'm sure I won't have access to the terminal
     pid = fork();
     if (pid < 0) {
         exit(EXIT_FAILURE);
@@ -65,7 +65,7 @@ static void daemonize() {
         exit(EXIT_SUCCESS);
     }
 
-    // Tento di cambiare la directory di lavoro a /
+    // Try to change the working directory to /
     chdir("/");
 }
 
@@ -83,7 +83,7 @@ static void log_time(FILE *log_file) {
 }
 
 int main() {
-    // 0. Carico le variabili dal file di configurazione
+    // 0. Load variables from the configuration file
     char** archs_list = (char**)malloc(MAX_ARCHITECTURES * sizeof(char*));
     int num_archs = 0;
     char *sshlirp_repo_url = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
@@ -100,13 +100,13 @@ int main() {
     char *thread_chroot_log_file = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *thread_log_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     int poll_interval = 0;
-    // Nota: il mutex sarà necessario solo per il setup del chroot, operazione molto dispendiosa che, se eseguita in parallelo
-    // per molte architetture, rischia l'accadimento di race conditions
+    // Note: the mutex will only be necessary for the chroot setup, a very expensive operation that, if performed in parallel
+    // for many architectures, risks race conditions
     pthread_mutex_t chroot_setup_mutex;
     pthread_mutex_init(&chroot_setup_mutex, NULL);
 
-    printf("Avvio di sshlirp_ci...\n");
-    printf("Caricamento delle variabili di configurazione...\n");
+    printf("Starting sshlirp_ci...\n");
+    printf("Loading configuration variables...\n");
 
     if(conf_vars_loader(
             archs_list, 
@@ -126,20 +126,20 @@ int main() {
             thread_log_dir,
             &poll_interval) != 0) {
         fprintf(stderr, "Failed to load configuration variables. Exiting.\n");
-        // (il free della memoria allocata precedentemente, in caso di errore, è gestito dallo stesso conf_vars_loader)
+        // (freeing previously allocated memory, in case of error, is handled by conf_vars_loader itself)
         return 1;
     }
     
-    printf("Configurazione caricata con successo.\n");
-    printf("Verifica esistenza istanze del demone attive...\n");
+    printf("Configuration loaded successfully.\n");
+    printf("Checking for active daemon instances...\n");
 
-    // 1. Controllo se un'altra istanza del demone è già in esecuzione
+    // 1. Check if another instance of the daemon is already running
     FILE* pid_fp_check = fopen(PID_FILE, "r");
     if (pid_fp_check) {
         pid_t old_pid;
         if (fscanf(pid_fp_check, "%d", &old_pid) == 1) {
             if (kill(old_pid, 0) == 0) {
-                fprintf(stderr, "Error: sshlirp_ci è già in esecuzione con PID %d.\n", old_pid);
+                fprintf(stderr, "Error: sshlirp_ci is already running with PID %d.\n", old_pid);
                 fclose(pid_fp_check);
                 return 1;
             }
@@ -147,14 +147,14 @@ int main() {
         fclose(pid_fp_check);
     }
 
-    printf("Daemonizzazione in corso... I log saranno reperibili in %s. Per terminare il processo eseguire: sudo ./sshlirp_ci_stop\n", log_file);
+    printf("Daemonizing... Logs will be available in %s. To terminate the process, run: sudo ./sshlirp_ci_stop\n", log_file);
     
-    // 2. Demonizzo il processo
+    // 2. Daemonize the process
     daemonize();
 
-    // ============== Codice eseguito solo dal demone da qui in poi ==============
+    // ============== Code executed only by the daemon from here on ==============
 
-    // Scrivi il PID del demone
+    // Write the daemon's PID
     FILE *pid_fp = fopen(PID_FILE, "w");
     if (pid_fp) {
         fprintf(pid_fp, "%d\n", getpid());
@@ -163,13 +163,13 @@ int main() {
         exit(EXIT_FAILURE); 
     }
     
-    // Registra la funzione di cleanup all'uscita
+    // Register the cleanup function on exit
     atexit(cleanup_daemon_files);
 
-    // 3. Creo file principali (se non esistono):
-    // - la directory fondamentale (/home/sshlirpCI)
-    // - la directory e il file di log principale (home/sshlirpCI/log e home/sshlirpCI/log/main_sshlirp.log)
-    // - il file di versioning (/home/sshlirpCI/versions.txt)
+    // 3. Create main files (if they don't exist):
+    // - the fundamental directory (/home/sshlirpCI)
+    // - the main log directory and file (home/sshlirpCI/log and home/sshlirpCI/log/main_sshlirp.log)
+    // - the versioning file (/home/sshlirpCI/versions.txt)
 
     // /home/sshlirpCI
     if (access(main_dir, F_OK) == -1) {
@@ -205,59 +205,59 @@ int main() {
         perror("Error opening log file");
         return 1;
     }
-    // Imposto il line buffering per il file di log principale, in modo che le stampe vengano scritte subito dopo ogni newline
+    // Set line buffering for the main log file, so that prints are written immediately after each newline
     setvbuf(log_fp, NULL, _IOLBF, 0);
-    // non chiudo log_fp qui, lo chiuderò alla fine del main, in quanto mi serve per scrivere i log del demone
+    // I don't close log_fp here, I'll close it at the end of main, as I need it to write the daemon's logs
 
     int round = 0;
     commit_status_t initial_check = {1, NULL};
     commit_status_t new_commit = {1, NULL};
 
-    // 5. Avvio il loop principale nel demone
+    // 5. Start the main loop in the daemon
     while (1) {
         if (terminate_daemon_flag) {
-            fprintf(log_fp, "Segnale di terminazione ricevuto prima dell'avvio operazioni, uscita in corso...\n");
+            fprintf(log_fp, "Termination signal received before starting operations, exiting...\n");
             break;
         }
         update_daemon_state(DAEMON_STATE_WORKING);
 
-        // 6. Controllo se ci sono le directory dell'host e i repository git
+        // 6. Check if the host directories and git repositories exist
         if (round == 0) {
             log_time(log_fp);
-            fprintf(log_fp, "Avvio del demone per la prima volta...\n");
+            fprintf(log_fp, "Starting the daemon for the first time...\n");
 
             initial_check = check_host_dirs(target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, thread_log_dir, log_fp, versioning_file);
 
-            // Nota: questa funzione non fa nulla se le dirs sono già esistenti e se esiste già la repo git (possibile in caso di crash o interruzione)
+            // Note: this function does nothing if the dirs already exist and if the git repo already exists (possible in case of a crash or interruption)
             if (initial_check.status == 1) {
-                fprintf(log_fp, "Error: Errore durante la ricerca o creazione delle directories dell'host, del file di log o durante la clonazione dei repository.\n");
+                fprintf(log_fp, "Error: Error during search or creation of host directories, log file, or during repository cloning.\n");
                 terminate_daemon_flag = 1;
                 break;
             }
         }
 
-        // 6.1. Se non è il primo avvio (e quindi avevo già clonato e ho atteso poll_interval secondi) o se la repo era già clonata
-        // (quindi magari c'è stato un crash o un'interruzione), tento di pullare eventuali nuovi commit
+        // 6.1. If it's not the first start (and so I had already cloned and waited poll_interval seconds) or if the repo was already cloned
+        // (so maybe there was a crash or an interruption), I try to pull any new commits
         if (round > 0 || initial_check.status == 0) {
             new_commit = check_new_commit(sshlirp_source_dir, sshlirp_repo_url, libslirp_source_dir, libslirp_repo_url, log_file, log_fp, versioning_file);
         }
 
-        // 7. Se è il primo avvio e ho effettivamente clonato o se ho trovato nuovi commit, preparo i thread per la build
+        // 7. If it's the first start and I actually cloned or if I found new commits, I prepare the threads for the build
         if ((round == 0 && initial_check.status == 2) || new_commit.status == 2) {
 
             if (round == 0) {
-                fprintf(log_fp, "Primo avvio del demone, è il momento di lanciare i thread...\n");
+                fprintf(log_fp, "First daemon run, it's time to launch the threads...\n");
             } else {
                 fprintf(log_fp, "\n");
                 log_time(log_fp);
-                fprintf(log_fp, "Nuovo commit per sshlirp trovato, procedo con la build...\n");
+                fprintf(log_fp, "New commit for sshlirp found, proceeding with the build...\n");
             }
 
-            // 7.1. Preparo i thread
+            // 7.1. Prepare the threads
             pthread_t threads[num_archs];
             thread_args_t args[num_archs];
 
-            // 7.2. Lancio i thread di build
+            // 7.2. Launch the build threads
             for (int i = 0; i < num_archs; i++) {
 
                 // Inizializzo il pull_round (mi sarà utile nel thread per capire se devo setuppare il chroot, il log file locale... o meno)
@@ -313,10 +313,10 @@ int main() {
                 args[i].chroot_setup_mutex = &chroot_setup_mutex;
 
                 if (pthread_create(&threads[i], NULL, build_worker, &args[i]) != 0) {
-                    fprintf(log_fp, "Error: Errore durante la creazione del thread per l'architettura %s.\n", args[i].arch);
+                    fprintf(log_fp, "Error: Error creating thread for architecture %s.\n", args[i].arch);
                     return 1;
                 } else {
-                    fprintf(log_fp, "Thread creato con successo per l'architettura %s.\n", args[i].arch);
+                    fprintf(log_fp, "Thread created successfully for architecture %s.\n", args[i].arch);
                 }
             }
 
@@ -328,28 +328,28 @@ int main() {
                 int successful_join = pthread_join(threads[i], &thread_return_value);
 
                 if (successful_join != 0) {
-                    fprintf(log_fp, "Error: Errore durante il join del thread per %s\n", args[i].arch);
+                    fprintf(log_fp, "Error: Error joining thread for %s\n", args[i].arch);
                 } else {
                     if (thread_return_value != NULL) {
                         thread_result_t *worker_result = (thread_result_t *)thread_return_value;
                         if (worker_result->status != 0) {
-                            fprintf(log_fp, "Error: Thread per %s terminato con errore: %s\n", args[i].arch, worker_result->error_message ? worker_result->error_message : "Nessun messaggio di errore.");
+                            fprintf(log_fp, "Error: Thread for %s terminated with error: %s\n", args[i].arch, worker_result->error_message ? worker_result->error_message : "No error message.");
                         } else {
-                            fprintf(log_fp, "Thread per %s terminato con successo.\n", args[i].arch);
+                            fprintf(log_fp, "Thread for %s terminated successfully.\n", args[i].arch);
                         }
 
-                        // Libero la memoria allocata per il risultato del thread
+                        // Free the memory allocated for the thread result
                         if (worker_result->error_message) {
                             free(worker_result->error_message);
                         }
                         free(worker_result);
                     } else {
-                        fprintf(log_fp, "Thread per %s terminato senza un valore di ritorno specifico (o errore nell'allocazione del ritorno).\n", args[i].arch);
+                        fprintf(log_fp, "Thread for %s terminated without a specific return value (or error in return allocation).\n", args[i].arch);
                     }
                 }
             }
 
-            // 7.4. Faccio il merge dei log dei thread (logs nell'host di ogni thread + logs nel chroot) nel log principale e pulisco i log (sia quelli in thread_log_dir che in thread_chroot_log_dir) dei thread
+            // 7.4. Merge the thread logs (logs on the host for each thread + logs in the chroot) into the main log and clean the thread logs (both in thread_log_dir and in thread_chroot_log_dir)
             for (int i = 0; i < num_archs; i++) {
                 char thread_log_path_on_host[MAX_CONFIG_ATTR_LEN];
                 snprintf(thread_log_path_on_host, sizeof(thread_log_path_on_host), "%s", args[i].thread_log_file);
@@ -363,53 +363,53 @@ int main() {
                 if (thread_log_read_on_host) {
                     char line[1024];
 
-                    fprintf(log_fp, "===== Inizio Log dal thread %s =====\n", args[i].arch);
-                    fprintf(log_fp, "--- Inizio Log dal thread %s (Host logfile: %s) ---\n", args[i].arch, thread_log_path_on_host);
+                    fprintf(log_fp, "===== Start Log from thread %s =====\n", args[i].arch);
+                    fprintf(log_fp, "--- Start Log from thread %s (Host logfile: %s) ---\n", args[i].arch, thread_log_path_on_host);
                     while (fgets(line, sizeof(line), thread_log_read_on_host)) {
                         fprintf(log_fp, "%s", line);
                     }
                     fclose(thread_log_read_on_host);
-                    fprintf(log_fp, "--- Fine Log dal thread %s (Host logfile: %s) ---\n", args[i].arch, thread_log_path_on_host);
+                    fprintf(log_fp, "--- End Log from thread %s (Host logfile: %s) ---\n", args[i].arch, thread_log_path_on_host);
 
-                    // Nota: se c'è il log file nell'host, non è detto che ci sia anche quello dentro il chroot (potrebbe esserci stato un errore)
+                    // Note: if the log file exists on the host, it doesn't necessarily mean it also exists inside the chroot (an error might have occurred)
                     if (thread_log_read_in_chroot) {
-                        fprintf(log_fp, "--- Inizio Log dal thread %s (Chroot logfile: %s) ---\n", args[i].arch, thread_log_path_in_chroot);
+                        fprintf(log_fp, "--- Start Log from thread %s (Chroot logfile: %s) ---\n", args[i].arch, thread_log_path_in_chroot);
                         while (fgets(line, sizeof(line), thread_log_read_in_chroot)) {
                             fprintf(log_fp, "%s", line);
                         }
                         fclose(thread_log_read_in_chroot);
-                        fprintf(log_fp, "--- Fine Log dal thread %s (Chroot logfile: %s) ---\n", args[i].arch, thread_log_path_in_chroot);
+                        fprintf(log_fp, "--- End Log from thread %s (Chroot logfile: %s) ---\n", args[i].arch, thread_log_path_in_chroot);
                     } else {
-                        fprintf(log_fp, "Avviso: Impossibile aprire il log del thread per l'architettura %s nel chroot: %s\n", args[i].arch, strerror(errno));
+                        fprintf(log_fp, "Warning: Could not open thread log for architecture %s in chroot: %s\n", args[i].arch, strerror(errno));
                     }
 
-                    fprintf(log_fp, "===== Fine Log dal thread %s =====\n", args[i].arch);
+                    fprintf(log_fp, "===== End Log from thread %s =====\n", args[i].arch);
 
-                    // Pulisco i file di log del thread troncandoli
+                    // Clean the thread log files by truncating them
                     FILE *thread_log_truncate = fopen(thread_log_path_on_host, "w");
                     if (thread_log_truncate) {
                         fclose(thread_log_truncate);
-                        fprintf(log_fp, "Log del thread %s (Host) pulito con successo: %s\n", args[i].arch, thread_log_path_on_host);
+                        fprintf(log_fp, "Thread log %s (Host) cleaned successfully: %s\n", args[i].arch, thread_log_path_on_host);
                     } else {
-                        fprintf(log_fp, "Error: Errore nella pulizia (truncating) del log del thread per l'architettura %s: %s. Errore: %s\n", args[i].arch, thread_log_path_on_host, strerror(errno));
+                        fprintf(log_fp, "Error: Error cleaning (truncating) thread log for architecture %s: %s. Error: %s\n", args[i].arch, thread_log_path_on_host, strerror(errno));
                     }
 
                     if (access(thread_log_path_in_chroot, F_OK) == 0) {
                         FILE *thread_chroot_log_truncate = fopen(thread_log_path_in_chroot, "w");
                         if (thread_chroot_log_truncate) {
                             fclose(thread_chroot_log_truncate);
-                            fprintf(log_fp, "Log del thread %s (Chroot) pulito con successo: %s\n", args[i].arch, thread_log_path_in_chroot);
+                            fprintf(log_fp, "Thread log %s (Chroot) cleaned successfully: %s\n", args[i].arch, thread_log_path_in_chroot);
                         } else {
-                            fprintf(log_fp, "Error: Errore nella pulizia (truncating) del log del thread per l'architettura %s (Chroot): %s. Errore: %s\n", args[i].arch, thread_log_path_in_chroot, strerror(errno));
+                            fprintf(log_fp, "Error: Error cleaning (truncating) thread log for architecture %s (Chroot): %s. Error: %s\n", args[i].arch, thread_log_path_in_chroot, strerror(errno));
                         }
                     }
 
                 } else {
-                    fprintf(log_fp, "Avviso: Impossibile aprire per la lettura il file di log (Host) del thread per l'architettura %s. Errore: %s\n", args[i].arch, strerror(errno));
+                    fprintf(log_fp, "Warning: Could not open for reading the log file (Host) of the thread for architecture %s. Error: %s\n", args[i].arch, strerror(errno));
                 }
             }
 
-            // 7.5. Sposto i binari compilati in target_dir/initial_check.new_release (oppure in target_dir/new_commit.new_release)
+            // 7.5. Move the compiled binaries to target_dir/initial_check.new_release (or to target_dir/new_commit.new_release)
             for (int i = 0; i < num_archs; i++) {
 
                 char expected_binary_name[MAX_CONFIG_ATTR_LEN];
@@ -429,125 +429,125 @@ int main() {
 
                 if (access(final_target_dir, F_OK) == -1) {
                     if (mkdir(final_target_dir, 0755) != 0) {
-                        fprintf(log_fp, "Error: Errore durante la creazione della directory %s per l'architettura %s. Errore: %s. I binari per questa architettura verranno inseriti nella parent directory della release.\n", final_target_dir, args[i].arch, strerror(errno));
+                        fprintf(log_fp, "Error: Error creating directory %s for architecture %s. Error: %s. Binaries for this architecture will be placed in the parent directory of the release.\n", final_target_dir, args[i].arch, strerror(errno));
                         snprintf(final_target_path, sizeof(final_target_path), "%s/%s", target_dir, expected_binary_name);
                     } else {
-                        fprintf(log_fp, "Directory %s creata con successo per la nuova release (architettura %s).\n", final_target_dir, args[i].arch);
+                        fprintf(log_fp, "Directory %s created successfully for the new release (architecture %s).\n", final_target_dir, args[i].arch);
                         snprintf(final_target_path, sizeof(final_target_path), "%s/%s", final_target_dir, expected_binary_name);
                     }
                 } else {
-                    fprintf(log_fp, "Directory %s già esistente per la release (architettura %s).\n", final_target_dir, args[i].arch);
+                    fprintf(log_fp, "Directory %s already exists for the release (architecture %s).\n", final_target_dir, args[i].arch);
                     snprintf(final_target_path, sizeof(final_target_path), "%s/%s", final_target_dir, expected_binary_name);
                 }
 
                 if (access(source_bin_path, F_OK) == 0) {
                     if (access(final_target_path, F_OK) == 0) {
                         if (remove(final_target_path) != 0) {
-                            fprintf(log_fp, "Error: Errore durante la rimozione del vecchio binario %s per l'architettura %s. Errore: %s\n", final_target_path, args[i].arch, strerror(errno));
+                            fprintf(log_fp, "Error: Error removing old binary %s for architecture %s. Error: %s\n", final_target_path, args[i].arch, strerror(errno));
                         } else {
-                            fprintf(log_fp, "Vecchio binario per l'architettura %s rimosso con successo.\n", args[i].arch);
+                            fprintf(log_fp, "Old binary for architecture %s removed successfully.\n", args[i].arch);
                         }
                     }
 
                     if (rename(source_bin_path, final_target_path) != 0) {
-                        fprintf(log_fp, "Error: Errore durante lo spostamento del binario %s a %s per l'architettura %s. Errore: %s\n", source_bin_path, final_target_path, args[i].arch, strerror(errno));
+                        fprintf(log_fp, "Error: Error moving binary %s to %s for architecture %s. Error: %s\n", source_bin_path, final_target_path, args[i].arch, strerror(errno));
                     } else {
-                        fprintf(log_fp, "Binario per l'architettura %s spostato con successo in %s.\n", args[i].arch, final_target_path);
+                        fprintf(log_fp, "Binary for architecture %s moved successfully to %s.\n", args[i].arch, final_target_path);
                     }
                 } else {
-                    fprintf(log_fp, "Error: Binario sorgente %s non trovato per l'architettura %s. Spostamento saltato.\n", source_bin_path, args[i].arch);
+                    fprintf(log_fp, "Error: Source binary %s not found for architecture %s. Move skipped.\n", source_bin_path, args[i].arch);
                 }
             }
 
             fprintf(log_fp, "\n");
             log_time(log_fp);
-            fprintf(log_fp, "Build completata per tutte le architetture.\n");
+            fprintf(log_fp, "Build completed for all architectures.\n");
 
         }/*  else if (round == 0 && initial_check.status == 1 && new_commit.status == 1) {
-            // impossibile: initial_check.status == 1 significherebbe che ho avuto errore durante il check_host_dirs,
-            // quindi non posso trovarmi qua.
-            // Nota: questo scenario potrebbe sembrare essere associato anche a un'esecuzione "vuota" (sono arrivato qua con ancora i valori di
-            // inizializzazione). Ma ciò non è possibile perché con round == 0 eseguo check_host_dirs, che lascia 
-            // initial_check.status == 1 solo se fallisce, ma in tal caso si uscirebbe dal ciclo e non si potrebbe mai arrivare qua.
+            // impossible: initial_check.status == 1 would mean I had an error during check_host_dirs,
+            // so I can't be here.
+            // Note: this scenario might seem to be associated with an "empty" execution (I got here with still the initialization values).
+            // But this is not possible because with round == 0 I execute check_host_dirs, which leaves 
+            // initial_check.status == 1 only if it fails, but in that case it would exit the loop and could never get here.
 
         } else if (round == 0 && initial_check.status == 0 && new_commit.status == 1) {
-            // Al primo avvio ho trovato già tutto clonato e ho provato a pullare ma c'è stato un errore.
-            // In questo caso devo fare break (un errore nel pull è critico, non posso continuare a girare il demone)
-            fprintf(log_fp, "Errore durante check_new_commit al primo avvio: sono state trovate repo già clonate ma il pull ha fallito. Esco dal demone...\n");
+            // On the first run I found everything already cloned and I tried to pull but there was an error.
+            // In this case I have to break (an error in the pull is critical, I can't keep the daemon running)
+            fprintf(log_fp, "Error during check_new_commit on first run: repos already cloned were found but the pull failed. Exiting daemon...\n");
             break;
 
         } else if (round > 0 && initial_check.status == 1 && new_commit.status == 1) {
-            // impossibile: initial_check.status == 1 significherebbe che ho avuto errore durante il check_host_dirs,
-            // quindi non posso trovarmi qua. Poi oltretutto round > 0, in questo contesto, è paradossale
+            // impossible: initial_check.status == 1 would mean I had an error during check_host_dirs,
+            // so I can't be here. Moreover, round > 0 in this context is paradoxical
 
         } else if (round > 0 && initial_check.status == 0 && new_commit.status == 1) {
-            // Al primo avvio avevo registrato che le dirs sull'host erano già presenti e l'host era già correttamente configurato (c'era stato un'interruzione),
-            // quindi sono andato avanti con i round (durante i quali anche i check_new_commit sono stati effettuati correttamente).
-            // A questo punto però è stato riscontrato un errore durante il pull di questo round e quindi devo uscire dal demone
-            fprintf(log_fp, "Errore durante check_new_commit: all'avvio erano state trovate repo già clonate, sono stati effettuati %d round correttamente ma al round %d il pull ha fallito. Esco dal demone...\n", round - 1, round);
+            // On the first run I had registered that the dirs on the host were already present and the host was already correctly configured (there had been an interruption),
+            // so I went on with the rounds (during which the check_new_commit were also performed correctly).
+            // At this point, however, an error was encountered during the pull of this round and so I have to exit the daemon
+            fprintf(log_fp, "Error during check_new_commit: on startup repos were already cloned, %d rounds were performed correctly but on round %d the pull failed. Exiting daemon...\n", round - 1, round);
             break;
 
         } else if (round > 0 && initial_check.status == 2 && new_commit.status == 1) {
-            // Al primo avvio avevo clonato correttamente le repo, poi sono andato avanti con i round (durante i quali anche i check_new_commit sono stati effettuati correttamente),
-            // ma a questo punto ho riscontrato un errore durante check_new_commit; devo quindi uscire dal demone
-            fprintf(log_fp, "Errore durante check_new_commit: al primo avvio le repo erano state clonate correttamente, sono stati effettuati %d round correttamente ma al round %d il pull ha fallito. Esco dal demone...\n", round - 1, round);
+            // On the first run I had correctly cloned the repos, then I went on with the rounds (during which the check_new_commit were also performed correctly),
+            // but at this point I encountered an error during check_new_commit; I must therefore exit the daemon
+            fprintf(log_fp, "Error during check_new_commit: on first run the repos were cloned correctly, %d rounds were performed correctly but on round %d the pull failed. Exiting daemon...\n", round - 1, round);
             break;
 
         } else if (round == 0 && initial_check.status == 1 && new_commit.status == 0) {
-            // impossibile: initial_check.status == 1 significherebbe che ho avuto errore durante il check_host_dirs,
-            // quindi non posso trovarmi qua. Anche perché oltretutto new_commit_status == 0 vorrebbe dire che ho eseguit
-            // il check_new_commit nonostante l'errore di check_host_dirs
+            // impossible: initial_check.status == 1 would mean I had an error during check_host_dirs,
+            // so I can't be here. Also because new_commit_status == 0 would mean I executed
+            // check_new_commit despite the check_host_dirs error
 
         } else if (round == 0 && initial_check.status == 0 && new_commit.status == 0) {
-            // Al primo avvio è stato trovato tutto al suo posto nell'host (le dirs e le repo erano già presenti),
-            // è stato quindi effettuato il check_new_commit ma non sono stati trovati nuovi commit.
-            // Questo è uno dei casi in cui devo semplicemnte andare avanti
+            // On the first run everything was found in its place on the host (the dirs and repos were already present),
+            // check_new_commit was then performed but no new commits were found.
+            // This is one of the cases where I simply have to move on
 
         } else if (round > 0 && initial_check.status == 1 && new_commit.status == 0) {
-            // impossibile: initial_check.status == 1 significherebbe che ho avuto errore durante il check_host_dirs,
-            // quindi non posso trovarmi qua. Poi oltretutto round > 0 e new_commit_status == 0 in questo contesto, sono paradossali
+            // impossible: initial_check.status == 1 would mean I had an error during check_host_dirs,
+            // so I can't be here. Moreover, round > 0 and new_commit_status == 0 in this context are paradoxical
 
         } else if (round > 0 && initial_check.status == 0 && new_commit.status == 0) {
-            // Al primo avvio era stato trovato tutto al suo posto nell'host (le dirs e le repo erano già presenti),
-            // sono stati poi effettuati diversi round e l'ultimo check_new_commit non ha trovato nuovi commit...
-            // Anche qui: tutto normale, vado avanti
+            // On the first run everything was found in its place on the host (the dirs and repos were already present),
+            // several rounds were then performed and the last check_new_commit found no new commits...
+            // Here too: all normal, I move on
 
         } else if (round > 0 && initial_check.status == 2 && new_commit.status == 0) {
-            // Al primo avvio avevo clonato correttamente le repo, sono poi andato avanti con i round (durante i quali anche i check_new_commit sono stati effettuati correttamente),
-            // e a questo punto ho fatto di nuovo check_new_commit ma non sono stati trovati nuovi commit.
-            // Anche in questo caso non devo fare altro che andare avanti
+            // On the first run I had correctly cloned the repos, then I went on with the rounds (during which the check_new_commit were also performed correctly),
+            // and at this point I did check_new_commit again but no new commits were found.
+            // In this case too, I just have to move on
 
         } */
 
-        // Secondo le considerazioni precedenti è possibile riassumere i possibili esiti dei check nei seguenti casi:
+        // According to the previous considerations, it is possible to summarize the possible outcomes of the checks in the following cases:
         else if (new_commit.status == 1) {
-            fprintf(log_fp, "Error: Errore durante check_new_commit. Esco dal demone...\n");
+            fprintf(log_fp, "Error: Error during check_new_commit. Exiting daemon...\n");
             break;
         }
         else {                                                  // new_commit.status == 0
-            // nessun commit nuovo trovato, vado avanti
+            // no new commit found, moving on
         }
         
         if (terminate_daemon_flag) {
-            fprintf(log_fp, "Segnale di terminazione ricevuto prima dello sleep e a operazioni terminate, uscita in corso...\n");
+            fprintf(log_fp, "Termination signal received before sleep and after operations completed, exiting...\n");
             break;
         }
 
         update_daemon_state(DAEMON_STATE_SLEEPING);
         log_time(log_fp);
-        fprintf(log_fp, "Demone in attesa per %d secondi...\n", poll_interval);
+        fprintf(log_fp, "Daemon sleeping for %d seconds...\n", poll_interval);
         
-        // Ciclo di sonno e gestione dei segnali di interruzione
+        // Sleep cycle and handling of interrupt signals
         unsigned int time_left = poll_interval;
         while(time_left > 0) {
             time_left = sleep(time_left);
             if (terminate_daemon_flag) {
-                fprintf(log_fp, "Sleep interrotto da segnale di terminazione.\n");
+                fprintf(log_fp, "Sleep interrupted by termination signal.\n");
                 break; 
             }
             if (time_left > 0) {
-                // Se mi rimaneva del tempo per dormire e non ho ricevuto un segnale di stop, allora sono stato disturbato da qualcun altro e quindi ignoro e dormo ancora
-                fprintf(log_fp, "Sleep interrotto, %u secondi rimanenti, continuo ad attendere...\n", time_left);
+                // If I had time left to sleep and I didn't receive a stop signal, then I was disturbed by someone else and so I ignore and sleep again
+                fprintf(log_fp, "Sleep interrupted, %u seconds remaining, continuing to wait...\n", time_left);
             }
         }
 
@@ -555,12 +555,12 @@ int main() {
     }
 
     log_time(log_fp);
-    fprintf(log_fp, "sshlirp_ci demone terminato.\n");
+    fprintf(log_fp, "sshlirp_ci daemon terminated.\n");
     fclose(log_fp);
 
     pthread_mutex_destroy(&chroot_setup_mutex);
 
-    // Libera la memoria allocata
+    // Free allocated memory
     for (int i = 0; i < num_archs; i++) {
         free(archs_list[i]);
     }

@@ -12,7 +12,7 @@
 #include "test.h"
 
 int test_sshlirp_bin(thread_args_t *args, char *sshlirp_bin_path, FILE *host_log_fp) {
-    // Lancio lo script di test per completare il setup del chroot per il test e la sua esecuzione
+    // Launch the test script to complete the chroot setup for the test and its execution
     int script_status = 0;
 
     script_status = execute_embedded_script_for_thread(
@@ -28,7 +28,7 @@ int test_sshlirp_bin(thread_args_t *args, char *sshlirp_bin_path, FILE *host_log
         host_log_fp
     );
     if (script_status != 0) {
-        fprintf(host_log_fp, "Error: Errore durante l'esecuzione dello script di test in %s. Script exit status: %d\n", args->chroot_path, script_status);
+        fprintf(host_log_fp, "Error: Error executing test script in %s. Script exit status: %d\n", args->chroot_path, script_status);
         return 1;
     }
 

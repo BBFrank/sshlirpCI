@@ -9,7 +9,7 @@
 #include "scripts/check_commit_script.h"
 #include "utils/utils.h"
 
-// Funzione per caricare le architetture dal file di configurazione
+// Function to load architectures from the configuration file
 static void load_architectures(char** archs_list, int* num_archs_out) {
     FILE* fp = fopen(DEFAULT_CONFIG_PATH, "r");
     if (!fp) {
@@ -46,7 +46,7 @@ static void load_architectures(char** archs_list, int* num_archs_out) {
         return;
     }
 
-    // Primo passaggio: contare le architetture
+    // First pass: count the architectures
     char* temp_str_for_count = strdup(architectures_val_str);
     if (!temp_str_for_count) {
         perror("strdup failed for temp_str_for_count");
@@ -72,7 +72,7 @@ static void load_architectures(char** archs_list, int* num_archs_out) {
         return;
     }
 
-    // Secondo passaggio: popolare l'array
+    // Second pass: populate the array
     token = strtok(architectures_val_str, ",");
     int current_arch = 0;
     while (token && current_arch < count) {
@@ -93,7 +93,7 @@ static void load_architectures(char** archs_list, int* num_archs_out) {
     return;
 }
 
-// Funzione per caricare un URL da una chiave specifica
+// Function to load a URL from a specific key
 static void load_path(const char* key, char* path) {
     FILE* fp = fopen(DEFAULT_CONFIG_PATH, "r");
     if (!fp) {
@@ -117,7 +117,7 @@ static void load_path(const char* key, char* path) {
     path[0] = '\0';
 }
 
-// Funzione per caricare l'intervallo di polling
+// Function to load the polling interval
 static void load_poll_interval(int* poll_interval) {
     FILE* fp = fopen(DEFAULT_CONFIG_PATH, "r");
     if (!fp) {
@@ -139,7 +139,7 @@ static void load_poll_interval(int* poll_interval) {
     *poll_interval = 0;
 }
 
-// Funzione per liberare la memoria allocata per la lista delle architetture
+// Function to free the memory allocated for the list of architectures
 static void free_architectures(char** archs_list, int num_archs) {
     for (int i = 0; i < num_archs; i++) {
         free(archs_list[i]);
@@ -147,13 +147,13 @@ static void free_architectures(char** archs_list, int num_archs) {
     free(archs_list);
 }
 
-// Funzione per liberare le risorse allocate
+// Function to free allocated resources
 static void free_resources(
     char** archs, 
     int* num_archs, 
     char* sshlirp_repo_url, 
     char* libslirp_repo_url, 
-    char* vdens_repo_url,
+    char* vdens_repo_url, 
     char* main_dir, 
     char* versioning_file,
     char* target_dir, 
@@ -181,7 +181,7 @@ static void free_resources(
     free(thread_log_dir);
 }
 
-// Funzione per caricare le variabili di configurazione
+// Function to load configuration variables
 int conf_vars_loader(
     char** archs, 
     int* num_archs, 
@@ -293,7 +293,7 @@ int conf_vars_loader(
         return 0;
     }
 
-// Funzione per ottenere l'ultima release dal file di versioning, salvarla in una struttura commit_status_t e stampare logs su un log_fp
+// Function to get the last release from the versioning file, save it in a commit_status_t structure and print logs to a log_fp
 static int get_last_release(const char* versioning_file, commit_status_t* result, FILE* log_fp) {
     FILE* versioning_fp = fopen(versioning_file, "r");
     if (!versioning_fp) {
@@ -317,11 +317,11 @@ static int get_last_release(const char* versioning_file, commit_status_t* result
     return 0;
 }
 
-// Funzione per verificare se le directory host esistono o crearle e clonare i repository
-// Nota: questa funzione lancia uno script e in base anche ai valori di ritorno di questo, può ritornare i seguenti valori:
-// 1: errore
-// 0: non è stato effettuato il clone, in quanto esisteva già la repo
-// 2: ho effettuato il clone
+// Function to check if host directories exist or create them and clone repositories
+// Note: this function launches a script and based on its return values, can return the following values:
+// 1: error
+// 0: clone was not performed, as the repo already existed
+// 2: clone was performed
 commit_status_t check_host_dirs(
     char* target_dir, 
     char* sshlirp_source_dir, 
@@ -336,9 +336,9 @@ commit_status_t check_host_dirs(
     char* versioning_file
 ) {
     commit_status_t result = {1, NULL};
-    // 1. Controllo l'esistenza e, se necessario, creo le directories e il file di log nella macchina host
+    // 1. Check for existence and, if necessary, create the directories and the log file on the host machine
 
-    // es: /home/sshlirpCI/thread-binaries
+    // ex: /home/sshlirpCI/thread-binaries
     if (access(target_dir, F_OK) == -1) {
         if (mkdir(target_dir, 0755) == -1) {
             fprintf(log_fp, "Error: Error creating target directory: %s\n", strerror(errno));
@@ -346,7 +346,7 @@ commit_status_t check_host_dirs(
         }
     }
 
-    // es: /home/sshlirpCI/sshlirp
+    // ex: /home/sshlirpCI/sshlirp
     if (access(sshlirp_source_dir, F_OK) == -1) {
         if (mkdir(sshlirp_source_dir, 0755) == -1) {
             fprintf(log_fp, "Error: Error creating SSHLIRP source directory: %s\n", strerror(errno));
@@ -354,7 +354,7 @@ commit_status_t check_host_dirs(
         }
     }
 
-    // es: /home/sshlirpCI/libslirp
+    // ex: /home/sshlirpCI/libslirp
     if (access(libslirp_source_dir, F_OK) == -1) {
         if (mkdir(libslirp_source_dir, 0755) == -1) {
             fprintf(log_fp, "Error: Error creating LIBSLIRP source directory: %s\n", strerror(errno));
@@ -362,7 +362,7 @@ commit_status_t check_host_dirs(
         }
     }
 
-    // es: /home/sshlirpCI/vdens (solo se testing abilitato vado a creare la directory di vdens)
+    // ex: /home/sshlirpCI/vdens (only if testing is enabled will I create the vdens directory)
 #ifdef TEST_ENABLED
     if (access(vdens_source_dir, F_OK) == -1) {
         if (mkdir(vdens_source_dir, 0755) == -1) {
@@ -372,7 +372,7 @@ commit_status_t check_host_dirs(
     }
 #endif
 
-    // es: /home/sshlirpCI/log/threads (sono sicuro che la directory log esista già, creata in main.c)
+    // ex: /home/sshlirpCI/log/threads (I'm sure the log directory already exists, created in main.c)
     if (access(thread_log_dir, F_OK) == -1) {
         if (mkdir(thread_log_dir, 0755) == -1) {
             fprintf(log_fp, "Error: Error creating thread log directory: %s\n", strerror(errno));
@@ -380,7 +380,7 @@ commit_status_t check_host_dirs(
         }
     }
 
-    // 2. Clono le repo nei rispettivi percorsi -> lancio lo script incorporato gitClone.sh
+    // 2. Clone the repos in their respective paths -> launch the embedded gitClone.sh script
     int script_status;
 
     script_status = execute_embedded_script(
@@ -398,7 +398,7 @@ commit_status_t check_host_dirs(
         return result;
     }
 
-    // Nota: nel caso di git clone di libslirp non passo il versioning_file, perchè sennò lo script scriverebbe su esso l'ultima versione di libslirp
+    // Note: in the case of git clone of libslirp I don't pass the versioning_file, because otherwise the script would write the latest version of libslirp to it
     script_status = execute_embedded_script(
         git_clone_script_content,
         "git_clone",
@@ -415,7 +415,7 @@ commit_status_t check_host_dirs(
     }
 
 #ifdef TEST_ENABLED
-    // Clono la repo di vdens solo se il testing è abilitato e non passo il versioning file
+    // Clone the vdens repo only if testing is enabled and I don't pass the versioning file
     script_status = execute_embedded_script(
         git_clone_script_content,
         "git_clone",
@@ -432,7 +432,7 @@ commit_status_t check_host_dirs(
     }
 #endif
 
-    // Verifico il file di versioning di sshlirp
+    // Verify the sshlirp versioning file
     if (get_last_release(versioning_file, &result, log_fp) != 0) {
         return result;
     }
@@ -441,11 +441,11 @@ commit_status_t check_host_dirs(
     return result;
 }
 
-// Funzione per controllare (e eventualmente pullare) nuovi commit nella repo di sshlirp dalla repo remota
-// Nota: questa funzione chiama uno script e, analogamente alla funzione check_host_dirs, può ritornare i seguenti valori:
-// 1: errore
-// 0: non sono stati trovati nuovi commit, la repo è già aggiornata
-// 2: sono stati trovati nuovi commit, la repo è stata aggiornata
+// Function to check for (and possibly pull) new commits in the sshlirp repo from the remote repo
+// Note: this function calls a script and, similarly to the check_host_dirs function, can return the following values:
+// 1: error
+// 0: no new commits were found, the repo is already up to date
+// 2: new commits were found, the repo has been updated
 commit_status_t check_new_commit(char* sshlirp_source_dir, char* sshlirp_repo_url, char* libslirp_source_dir, char* libslirp_repo_url, char* log_file, FILE* log_fp, char* versioning_file) {
     commit_status_t result = {1, NULL};
     int script_status = execute_embedded_script(
@@ -467,7 +467,7 @@ commit_status_t check_new_commit(char* sshlirp_source_dir, char* sshlirp_repo_ur
     if (script_status == 2) {
         fprintf(log_fp, "New commits for sshlirp detected and pulled.\n");
 
-        // Leggo il file di versioning per ottenere l'ultima release
+        // Read the versioning file to get the latest release
         if (get_last_release(versioning_file, &result, log_fp) != 0) {
             return result;
         }

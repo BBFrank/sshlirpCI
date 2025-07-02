@@ -7,12 +7,12 @@
 #include <sys/stat.h>
 #include "types/types.h"
 
-// Funzione helper per creare, scrivere, rendere eseguibile e poi rimuovere uno script temporaneo
-// Nota: questa funzione viene chiamata sia per git clone che check commit. In generale i valori di ritorno degli script lanciati con system() sono i seguenti:
-// 1: errore
-// 0: non ho fatto niente (es. non ho nulla da clonare perché la repo esiste già oppure non ho pullato niente di nuovo)
-// 2: ho fatto qualcosa (es. ho clonato la repo o ho fatto il pull di un nuovo commit)
-// Quando si verificano invece errori esternamente allo script (ma sempre in questa funzione), ritorno -1.
+// Helper function to create, write, make executable, and then remove a temporary script
+// Note: this function is called for both git clone and check commit. In general, the return values of scripts launched with system() are as follows:
+// 1: error
+// 0: I did nothing (e.g., I have nothing to clone because the repo already exists or I haven't pulled anything new)
+// 2: I did something (e.g., I cloned the repo or pulled a new commit)
+// When errors occur outside the script (but still in this function), I return -1.
 int execute_embedded_script(
     const char* script_content, 
     const char* script,
@@ -71,14 +71,14 @@ int execute_embedded_script(
         return WEXITSTATUS(status);
     }
 
-    // Se lo script non è terminato normalmente, stampo un messaggio di errore
+    // If the script did not terminate normally, print an error message
     fprintf(log_fp, "Temporary script terminated abnormally. Status: %d\n", status);
     return 1;
 }
 
-// Funzione helper per creare, scrivere, rendere eseguibile e poi rimuovere uno script temporaneo all'interno di un chroot
-// Nota: a differenza della funzione precedente, questa ritorna solo 0 (successo) o 1 (errore) in quanto gli script eseguiti (chrootSetup, compile, copySrc, removeSrcCopy)
-// non devono restituire valori particolari per l'esecuzione di altre operazioni
+// Helper function to create, write, make executable, and then remove a temporary script inside a chroot
+// Note: unlike the previous function, this one only returns 0 (success) or 1 (error) as the executed scripts (chrootSetup, compile, copySrc, removeSrcCopy)
+// do not need to return special values for the execution of other operations
 int execute_embedded_script_for_thread(
     const char* arch,
     const char* script_content,
@@ -150,14 +150,14 @@ int execute_embedded_script_for_thread(
     return 1;
 }
 
-// Funzione per ottenere il percorso della directory padre di un path
+// Function to get the path of the parent directory of a path
 char *get_parent_dir(char *path){
     if (path == NULL || strlen(path) == 0) {
         return NULL;
     }
 
     int size = strlen(path);
-    // Rimuove eventuali slash finali, tranne se il path è solo "/"
+    // Removes any trailing slashes, unless the path is just "/"
     while (size > 1 && path[size - 1] == '/') {
         size--;
     }
@@ -167,22 +167,22 @@ char *get_parent_dir(char *path){
         i--;
     }
 
-    if (i < 0) { // Nessuno slash trovato (es. "filename")
-        // Restituisce "." per la directory corrente, o NULL se si preferisce errore
+    if (i < 0) { // No slash found (e.g. "filename")
+        // Returns "." for the current directory, or NULL if an error is preferred
         char *dir = malloc(2);
         if (!dir) return NULL;
         strcpy(dir, ".");
         return dir;
     }
 
-    if (i == 0 && path[0] == '/') { // Path è tipo "/filename" o "/"
+    if (i == 0 && path[0] == '/') { // Path is like "/filename" or "/"
         char *dir = malloc(2);
         if (!dir) return NULL;
         strcpy(dir, "/");
         return dir;
     }
     
-    // Path è tipo "foo/bar" o "/foo/bar"
+    // Path is like "foo/bar" or "/foo/bar"
     char *dir = (char *)malloc(i + 1);
     if (!dir) return NULL;
     strncpy(dir, path, i);  

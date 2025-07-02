@@ -19,8 +19,8 @@ void *build_worker(void *arg_ptr) {
     result->status = 1;
     result->error_message = NULL;
 
-    // Creo il file di log del thread nell'host se non esiste (nota: la directory che contiene i log file
-    // di tutti i thread è stata creata dall'init del main)
+    // Create the thread's log file on the host if it doesn't exist (note: the directory containing all thread log files
+    // was created by the main init)
     FILE* thread_log_fp = fopen(args->thread_log_file, "a");
     if (!thread_log_fp) {
         char err_buf[MAX_CONFIG_ATTR_LEN*2];
@@ -29,7 +29,7 @@ void *build_worker(void *arg_ptr) {
         pthread_exit(result);
     }
 
-    // Imposto il line buffering per il file di log del thread, in modo che le stampe vengano scritte subito dopo ogni newline
+    // Set line buffering for the thread's log file, so that prints are written immediately after each newline
     setvbuf(thread_log_fp, NULL, _IOLBF, 0);
 
     fprintf(thread_log_fp, "Worker started for arch %s. Pull round: %d.\n", args->arch, args->pull_round);
@@ -37,12 +37,12 @@ void *build_worker(void *arg_ptr) {
     if (args->pull_round == 0) {
         fprintf(thread_log_fp, "First run (pull_round 0). Checking and eventually setting up chroot for %s.\n", args->arch);
         
-        // Ecco l'unico punto dell'intero programma in cui è necessario bloccare il mutex. Infatti ciò non viene fatto
-        // per motivi di accesso concorrente a risorse condivise (ogni thread durante tutto il processo opera su sui file "personali"), bensì per motivi di consumo
-        // di risorse computazionali. Infatti dopo diversi test ho notato che l'ultimo thread lanciato terminava lo script di chroot_setup con stato 126 (script trovato ma non eseguibile)
-        // in quanto gli altri thread lanciati per primi consumavano tutte le risorse di CPU disponibili non permettendo all'ultimo di eseguire lo script di chroot_setup
-        // che è infatti l'operazione più costosa.
-        // Con l'uso di questo lock si garantisce quindi l'assenza di race condition anche se a spese del tempo di esecuzione totale.
+        // This is the only point in the entire program where it is necessary to lock the mutex. This is not done
+        // for reasons of concurrent access to shared resources (each thread operates on its "personal" files throughout the process), but for reasons of computational
+        // resource consumption. In fact, after several tests, I noticed that the last thread launched terminated the chroot_setup script with status 126 (script found but not executable)
+        // because the other threads launched first consumed all available CPU resources, not allowing the last one to execute the chroot_setup script,
+        // which is indeed the most expensive operation.
+        // The use of this lock therefore guarantees the absence of race conditions, albeit at the expense of total execution time.
         pthread_mutex_lock(args->chroot_setup_mutex);
         int setup_status = setup_chroot(args, thread_log_fp);
         pthread_mutex_unlock(args->chroot_setup_mutex);
@@ -57,7 +57,7 @@ void *build_worker(void *arg_ptr) {
         }
         fprintf(thread_log_fp, "Chroot setup complete for %s.\n", args->arch);
 
-        // L'operazione di check/creazione delle directory del worker dentro il chroot può avvenire senza lock
+        // The operation of checking/creating the worker's directories inside the chroot can be done without a lock
         fprintf(thread_log_fp, "Checking and eventually creating worker directories and log file inside chroot for %s.\n", args->arch);
         if (check_worker_dirs(args, thread_log_fp) != 0) {
             fprintf(thread_log_fp, "Failed to check/create worker directories for %s.\n", args->arch);
@@ -75,7 +75,7 @@ void *build_worker(void *arg_ptr) {
 
     fprintf(thread_log_fp, "Copying sources into chroot for %s.\n", args->arch);
 
-    // Non blocco questa operazione con il mutex in quanto andrò solo a copiare lo stesso codice sorgente di sshlirp/libslirp (operazione di lettura)
+    // I don't lock this operation with the mutex as I will only be copying the same sshlirp/libslirp source code (read operation)
     if (copy_sources_to_chroot(args, thread_log_fp) != 0) {
         fprintf(thread_log_fp, "Failed to copy sources for %s.\n", args->arch);
         char err_buf[MAX_CONFIG_ATTR_LEN*2];
@@ -86,12 +86,12 @@ void *build_worker(void *arg_ptr) {
     }
     fprintf(thread_log_fp, "Sources copied for %s.\n", args->arch);
 
-    // Compilazione (avviene dentro il chroot quindi i log andranno in args->thread_chroot_log_file)
+    // Compilation (occurs inside the chroot so logs will go to args->thread_chroot_log_file)
     fprintf(thread_log_fp, "Starting compilation process in chroot for %s...\n", args->arch);
     if (compile_and_verify_in_chroot(args, thread_log_fp) != 0) {
         fprintf(thread_log_fp, "...Compilation process failed for %s. Removing sources copy...\n", args->arch);
 
-        // Eliminazione copie del sorgente anche in caso di fallimento della compilazione
+        // Deleting source copies even in case of compilation failure
         if (remove_sources_copy_from_chroot(args, thread_log_fp) != 0) {
             fprintf(thread_log_fp, "Error: Failed to remove sources copy for %s.\n", args->arch);
             char err_buf[MAX_CONFIG_ATTR_LEN*2];
@@ -113,7 +113,7 @@ void *build_worker(void *arg_ptr) {
 
 #ifdef TEST_ENABLED
     fprintf(thread_log_fp, "Running tests in chroot for %s...\n", args->arch);
-    // Eseguo i test (se abilitati) dentro il chroot
+    // Run tests (if enabled) inside the chroot
     char target_chroot_bin_path[MAX_CONFIG_ATTR_LEN*3];
     snprintf(target_chroot_bin_path, sizeof(target_chroot_bin_path), "%s/bin/sshlirp-%s", args->thread_chroot_target_dir, args->arch);
     if (test_sshlirp_bin(args, target_chroot_bin_path, thread_log_fp) != 0) {
@@ -126,7 +126,7 @@ void *build_worker(void *arg_ptr) {
 
     fprintf(thread_log_fp, "Removing sources copy for %s.\n", args->arch);
 
-    // Eliminazione copie del sorgente delle sorgenti (operazioni a livello chroot, non richiede mutex)
+    // Deleting source copies (chroot level operations, does not require mutex)
     if (remove_sources_copy_from_chroot(args, thread_log_fp) != 0) {
         fprintf(thread_log_fp, "Error: Failed to remove sources copy for %s.\n", args->arch);
         char err_buf[MAX_CONFIG_ATTR_LEN*2];

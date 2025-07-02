@@ -14,7 +14,7 @@
 #include "scripts/modify_vdens_script.h"
 #include "utils/utils.h"
 
-// Funzione per configurare il chroot per il thread (crea la directory di chroot, esegue lo script di setup del chroot)
+// Function to configure the chroot for the thread (creates the chroot directory, executes the chroot setup script)
 int setup_chroot(thread_args_t* args, FILE* thread_log_fp) {
     
     if (mkdir(args->chroot_path, 0755) == -1 && errno != EEXIST) {
@@ -22,7 +22,7 @@ int setup_chroot(thread_args_t* args, FILE* thread_log_fp) {
         return 1;
     }
 
-    // Eseguo lo script di setup del chroot
+    // Execute the chroot setup script
     int script_status = execute_embedded_script_for_thread(
         args->arch,
         chroot_setup_script_content,
@@ -42,15 +42,15 @@ int setup_chroot(thread_args_t* args, FILE* thread_log_fp) {
     return 0;
 }
 
-// Funzione che si occupa di controllare (e nel caso creare) le directory del worker dentro il chroot e i suoi file di log (dentro e fuori il chroot):
-// - thread_chroot_main_dir: directory principale del thread dentro il chroot (es: <path2chroot>/home/sshlirpCI/)
-// - thread_chroot_sshlirp_dir: directory di sshlirp dentro il chroot (es: <path2chroot>/home/sshlirpCI/sshlirp)
-// - thread_chroot_libslirp_dir: directory di libslirp dentro il chroot (es: <path2chroot>/home/sshlirpCI/libslirp)
-// - thread_chroot_target_dir: directory di destinazione dei binari compilati dentro il chroot (es: <path2chroot>/home/sshlirpCI/thread-binaries)
-// - getparent(thread_chroot_log_file): directory di log del thread dentro il chroot (es: <path2chroot>/home/sshlirpCI/log)
-// - thread_chroot_log_file: file di log del thread dentro il chroot (es: <path2chroot>/home/sshlirpCI/log/thread_sshlirp.log)
+// Function that checks (and if necessary creates) the worker's directories inside the chroot and its log files (inside and outside the chroot):
+// - thread_chroot_main_dir: main directory of the thread inside the chroot (e.g. <path2chroot>/home/sshlirpCI/)
+// - thread_chroot_sshlirp_dir: sshlirp directory inside the chroot (e.g. <path2chroot>/home/sshlirpCI/sshlirp)
+// - thread_chroot_libslirp_dir: libslirp directory inside the chroot (e.g. <path2chroot>/home/sshlirpCI/libslirp)
+// - thread_chroot_target_dir: destination directory for compiled binaries inside the chroot (e.g. <path2chroot>/home/sshlirpCI/thread-binaries)
+// - getparent(thread_chroot_log_file): log directory of the thread inside the chroot (e.g. <path2chroot>/home/sshlirpCI/log)
+// - thread_chroot_log_file: log file of the thread inside the chroot (e.g. <path2chroot>/home/sshlirpCI/log/thread_sshlirp.log)
 int check_worker_dirs(thread_args_t* args, FILE* thread_log_fp) {
-    // es: <path2chroot>/home/sshlirpCI/
+    // ex: <path2chroot>/home/sshlirpCI/
     char path_buffer[1024];
     snprintf(path_buffer, sizeof(path_buffer), "%s%s", args->chroot_path, args->thread_chroot_main_dir);
     if(access(path_buffer, F_OK) == -1) {
@@ -59,7 +59,7 @@ int check_worker_dirs(thread_args_t* args, FILE* thread_log_fp) {
             return 1;
         }
     }
-    // es: <path2chroot>/home/sshlirpCI/sshlirp
+    // ex: <path2chroot>/home/sshlirpCI/sshlirp
     snprintf(path_buffer, sizeof(path_buffer), "%s%s", args->chroot_path, args->thread_chroot_sshlirp_dir);
     if(access(path_buffer, F_OK) == -1) {
         if (mkdir(path_buffer, 0755) == -1) {
@@ -67,7 +67,7 @@ int check_worker_dirs(thread_args_t* args, FILE* thread_log_fp) {
             return 1;
         }
     }
-    // es: <path2chroot>/home/sshlirpCI/libslirp
+    // ex: <path2chroot>/home/sshlirpCI/libslirp
     snprintf(path_buffer, sizeof(path_buffer), "%s%s", args->chroot_path, args->thread_chroot_libslirp_dir);
     if(access(path_buffer, F_OK) == -1) {
         if (mkdir(path_buffer, 0755) == -1) {
@@ -75,7 +75,7 @@ int check_worker_dirs(thread_args_t* args, FILE* thread_log_fp) {
             return 1;
         }
     }
-    // es: <path2chroot>/home/sshlirpCI/thread_binaries
+    // ex: <path2chroot>/home/sshlirpCI/thread_binaries
     snprintf(path_buffer, sizeof(path_buffer), "%s%s", args->chroot_path, args->thread_chroot_target_dir);
     if(access(path_buffer, F_OK) == -1) {
         if (mkdir(path_buffer, 0755) == -1) {
@@ -83,7 +83,7 @@ int check_worker_dirs(thread_args_t* args, FILE* thread_log_fp) {
             return 1;
         }
     }
-    // es: <path2chroot>/home/sshlirpCI/log
+    // ex: <path2chroot>/home/sshlirpCI/log
     char* log_parent_dir_rel = get_parent_dir(args->thread_chroot_log_file);
     if (!log_parent_dir_rel) {
         fprintf(thread_log_fp, "[Thread %s] Failed to get parent directory for chroot log file\n", args->arch);
@@ -99,7 +99,7 @@ int check_worker_dirs(thread_args_t* args, FILE* thread_log_fp) {
         }
     }
 
-    // es: <path2chroot>/home/sshlirpCI/log/thread_sshlirp.log
+    // ex: <path2chroot>/home/sshlirpCI/log/thread_sshlirp.log
     snprintf(path_buffer, sizeof(path_buffer), "%s%s", args->chroot_path, args->thread_chroot_log_file);
     FILE* thread_chroot_log_fp = fopen(path_buffer, "a");
     if (!thread_chroot_log_fp) {
@@ -111,9 +111,9 @@ int check_worker_dirs(thread_args_t* args, FILE* thread_log_fp) {
     return 0;
 }
 
-// Funzione che si occupa di copiare i sorgenti di sshlirp e libslirp dentro il chroot dalle directory host
+// Function that copies the sshlirp and libslirp sources into the chroot from the host directories
 int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
-    // Eseguo lo script di copia dei sorgenti dentro il chroot (non effettuo ancora il chroot effettivo) per sshlirp
+    // Execute the script to copy sources into the chroot (I don't perform the actual chroot yet) for sshlirp
     int script_status = execute_embedded_script_for_thread(
         args->arch,
         copy_source_script_content,
@@ -131,7 +131,7 @@ int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
         return 1;
     }
 
-    // Ora faccio per libslirp
+    // Now for libslirp
     script_status = execute_embedded_script_for_thread(
         args->arch,
         copy_source_script_content,
@@ -149,15 +149,15 @@ int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
         return 1;
     }
 
-    // Se il test è abilitato, copio anche vdens, modificandolo prima sull'host
+    // If testing is enabled, also copy vdens, modifying it on the host first
 #ifdef TEST_ENABLED
     
     char vdens_c_path[MAX_CONFIG_ATTR_LEN + 10];
 
     snprintf(vdens_c_path, sizeof(vdens_c_path), "%s/vdens.c", args->vdens_host_source_dir);
-    fprintf(thread_log_fp, "Modifico il file %s per disabilitare i namespaces...\n", vdens_c_path);
+    fprintf(thread_log_fp, "Modifying file %s to disable namespaces...\n", vdens_c_path);
 
-    // Eseguo lo script di modifica del file vdens.c per disabilitare i namespaces (causano errori nel chroot)
+    // Execute the script to modify the vdens.c file to disable namespaces (they cause errors in the chroot)
     script_status = execute_embedded_script_for_thread(
         args->arch,
         modify_vdens_script_content, 
@@ -169,11 +169,11 @@ int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
     );
 
     if (script_status != 0) {
-        fprintf(thread_log_fp, "Error: Errore durante la modifica del file vdens.c in %s. Script exit status: %d\n", vdens_c_path, script_status);
+        fprintf(thread_log_fp, "Error: Error modifying vdens.c file in %s. Script exit status: %d\n", vdens_c_path, script_status);
         return 1;
     }
 
-    // Eseguo lo script di copia
+    // Execute the copy script
     script_status = execute_embedded_script_for_thread(
         args->arch,
         copy_source_script_content,
@@ -196,9 +196,9 @@ int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
     return 0;
 }
 
-// Funzione che si occupa di compilare e verificare i sorgenti di sshlirp dentro il chroot (quando lancio lo script entrerò effettivamente nel chroot)
+// Function that compiles and verifies the sshlirp sources inside the chroot (when I run the script I will actually enter the chroot)
 int compile_and_verify_in_chroot(thread_args_t* args, FILE* thread_log_fp) {
-    // Eseguo lo script di compilazione dentro il chroot
+    // Execute the compilation script inside the chroot
     int script_status = execute_embedded_script_for_thread(
         args->arch,
         compile_script_content,
@@ -221,7 +221,7 @@ int compile_and_verify_in_chroot(thread_args_t* args, FILE* thread_log_fp) {
 }
 
 int remove_sources_copy_from_chroot(thread_args_t* args, FILE* thread_log_fp) {
-    // Eseguo lo script di rimozione dei sorgenti dentro il chroot
+    // Execute the script to remove sources inside the chroot
     int script_status = execute_embedded_script_for_thread(
         args->arch,
         remove_source_copy_script_content,
