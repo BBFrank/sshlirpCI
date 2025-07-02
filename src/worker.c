@@ -8,6 +8,7 @@
 #include <time.h>
 #include "init/worker_init.h"
 #include "worker.h"
+#include "test.h"
 
 void *build_worker(void *arg_ptr) {
     thread_args_t* args = (thread_args_t*)arg_ptr;
@@ -109,6 +110,19 @@ void *build_worker(void *arg_ptr) {
     }
 
     fprintf(thread_log_fp, "...Compilation successful for %s.\n", args->arch);
+
+#ifdef TEST_ENABLED
+    fprintf(thread_log_fp, "Running tests in chroot for %s...\n", args->arch);
+    // Eseguo i test (se abilitati) dentro il chroot
+    char target_chroot_bin_path[MAX_CONFIG_ATTR_LEN*3];
+    snprintf(target_chroot_bin_path, sizeof(target_chroot_bin_path), "%s/bin/sshlirp-%s", args->thread_chroot_target_dir, args->arch);
+    if (test_sshlirp_bin(args, target_chroot_bin_path, thread_log_fp) != 0) {
+        fprintf(thread_log_fp, "...Tests failed for %s.", args->arch);
+    }
+    else {
+        fprintf(thread_log_fp, "...Tests passed for %s.\n", args->arch);
+    }
+#endif
 
     fprintf(thread_log_fp, "Removing sources copy for %s.\n", args->arch);
 

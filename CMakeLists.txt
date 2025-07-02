@@ -11,6 +11,7 @@ include_directories(src/include)
 set(START_SOURCES
     src/main.c
     src/worker.c
+    src/test.c
     src/lib/init/init.c
     src/lib/init/worker_init.c
     src/lib/utils/utils.c

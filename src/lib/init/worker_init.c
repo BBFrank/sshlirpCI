@@ -11,6 +11,7 @@
 #include "scripts/copy_source_script.h"
 #include "scripts/compile_script.h"
 #include "scripts/remove_source_copy_script.h"
+#include "scripts/modify_vdens_script.h"
 #include "utils/utils.h"
 
 // Funzione per configurare il chroot per il thread (crea la directory di chroot, esegue lo script di setup del chroot)
@@ -112,24 +113,85 @@ int check_worker_dirs(thread_args_t* args, FILE* thread_log_fp) {
 
 // Funzione che si occupa di copiare i sorgenti di sshlirp e libslirp dentro il chroot dalle directory host
 int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
-    // Eseguo lo script di copia dei sorgenti dentro il chroot (non effettuo ancora il chroot effettivo)
+    // Eseguo lo script di copia dei sorgenti dentro il chroot (non effettuo ancora il chroot effettivo) per sshlirp
     int script_status = execute_embedded_script_for_thread(
         args->arch,
         copy_source_script_content,
         "copy_sources",
         args->sshlirp_host_source_dir,
-        args->libslirp_host_source_dir,
         args->chroot_path,
         args->thread_chroot_sshlirp_dir,
-        args->thread_chroot_libslirp_dir,
         args->thread_log_file,
+        NULL, NULL,
         thread_log_fp
     );
 
     if (script_status != 0) {
-        fprintf(thread_log_fp, "[Thread %s] Copy sources script failed with status: %d\n", args->arch, script_status);
+        fprintf(thread_log_fp, "[Thread %s] Copy sources script failed for sshlirp with status: %d\n", args->arch, script_status);
         return 1;
     }
+
+    // Ora faccio per libslirp
+    script_status = execute_embedded_script_for_thread(
+        args->arch,
+        copy_source_script_content,
+        "copy_sources",
+        args->libslirp_host_source_dir,
+        args->chroot_path,
+        args->thread_chroot_libslirp_dir,
+        args->thread_log_file,
+        NULL, NULL,
+        thread_log_fp
+    );
+
+    if (script_status != 0) {
+        fprintf(thread_log_fp, "[Thread %s] Copy sources script failed for libslirp with status: %d\n", args->arch, script_status);
+        return 1;
+    }
+
+    // Se il test è abilitato, copio anche vdens, modificandolo prima sull'host
+#ifdef TEST_ENABLED
+    
+    char vdens_c_path[MAX_CONFIG_ATTR_LEN + 10];
+
+    snprintf(vdens_c_path, sizeof(vdens_c_path), "%s/vdens.c", args->vdens_host_source_dir);
+    fprintf(thread_log_fp, "Modifico il file %s per disabilitare i namespaces...\n", vdens_c_path);
+
+    // Eseguo lo script di modifica del file vdens.c per disabilitare i namespaces (causano errori nel chroot)
+    script_status = execute_embedded_script_for_thread(
+        args->arch,
+        modify_vdens_script_content, 
+        "modify_vdens", 
+        vdens_c_path, 
+        args->thread_log_file, 
+        NULL, NULL, NULL, NULL,
+        thread_log_fp
+    );
+
+    if (script_status != 0) {
+        fprintf(thread_log_fp, "Error: Errore durante la modifica del file vdens.c in %s. Script exit status: %d\n", vdens_c_path, script_status);
+        return 1;
+    }
+
+    // Eseguo lo script di copia
+    script_status = execute_embedded_script_for_thread(
+        args->arch,
+        copy_source_script_content,
+        "copy_sources",
+        args->vdens_host_source_dir,
+        args->chroot_path,
+        args->thread_chroot_vdens_dir,
+        args->thread_log_file,
+        NULL, NULL,
+        thread_log_fp
+    );
+
+    if (script_status != 0) {
+        fprintf(thread_log_fp, "[Thread %s] Copy sources script failed for vdens with status: %d\n", args->arch, script_status);
+        return 1;
+    }
+
+#endif
 
     return 0;
 }
@@ -163,7 +225,7 @@ int remove_sources_copy_from_chroot(thread_args_t* args, FILE* thread_log_fp) {
     int script_status = execute_embedded_script_for_thread(
         args->arch,
         remove_source_copy_script_content,
-        "remove_sources",
+        "remove_sources_copy",
         args->chroot_path,
         args->thread_chroot_sshlirp_dir,
         args->thread_chroot_libslirp_dir,

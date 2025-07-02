@@ -88,11 +88,13 @@ int main() {
     int num_archs = 0;
     char *sshlirp_repo_url = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *libslirp_repo_url = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
+    char *vdens_repo_url = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *main_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *versioning_file = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *target_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *sshlirp_source_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *libslirp_source_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
+    char *vdens_source_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *log_file = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *thread_chroot_target_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
     char *thread_chroot_log_file = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
@@ -111,11 +113,13 @@ int main() {
             &num_archs, 
             sshlirp_repo_url, 
             libslirp_repo_url, 
+            vdens_repo_url,
             main_dir,
             versioning_file,
             target_dir, 
             sshlirp_source_dir,
             libslirp_source_dir,
+            vdens_source_dir,
             log_file, 
             thread_chroot_target_dir,
             thread_chroot_log_file,
@@ -222,7 +226,7 @@ int main() {
             log_time(log_fp);
             fprintf(log_fp, "Avvio del demone per la prima volta...\n");
 
-            initial_check = check_host_dirs(target_dir, sshlirp_source_dir, libslirp_source_dir, log_file, sshlirp_repo_url, libslirp_repo_url, thread_log_dir, log_fp, versioning_file);
+            initial_check = check_host_dirs(target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, thread_log_dir, log_fp, versioning_file);
 
             // Nota: questa funzione non fa nulla se le dirs sono già esistenti e se esiste già la repo git (possibile in caso di crash o interruzione)
             if (initial_check.status == 1) {
@@ -263,13 +267,17 @@ int main() {
                 strncpy(args[i].arch, archs_list[i], sizeof(args[i].arch) - 1);
                 args[i].arch[sizeof(args[i].arch) - 1] = '\0';
 
-                // Copia sicura del percorso della directory di codice sorgente di sshlirp nell'host (mi servirà per farne il mount nel chroot)
+                // Copia sicura del percorso della directory di codice sorgente di sshlirp nell'host (mi servirà per copiare nel chroot)
                 strncpy(args[i].sshlirp_host_source_dir, sshlirp_source_dir, sizeof(args[i].sshlirp_host_source_dir) - 1);
                 args[i].sshlirp_host_source_dir[sizeof(args[i].sshlirp_host_source_dir) - 1] = '\0';
 
-                // Copia sicura del percorso della directory di codice sorgente di libslirp nell'host (mi servirà per farne il mount nel chroot)
+                // Copia sicura del percorso della directory di codice sorgente di libslirp nell'host (mi servirà per copiare nel chroot)
                 strncpy(args[i].libslirp_host_source_dir, libslirp_source_dir, sizeof(args[i].libslirp_host_source_dir) - 1);
                 args[i].libslirp_host_source_dir[sizeof(args[i].libslirp_host_source_dir) - 1] = '\0';
+
+                // Copia sicura del percorso della directory di codice sorgente di vdens nell'host (se il testing è abilitato, mi servirà per copiare nel chroot)
+                strncpy(args[i].vdens_host_source_dir, vdens_source_dir, sizeof(args[i].vdens_host_source_dir) - 1);
+                args[i].vdens_host_source_dir[sizeof(args[i].vdens_host_source_dir) - 1] = '\0';
 
                 // Copia sicura del chroot_path
                 snprintf(args[i].chroot_path, sizeof(args[i].chroot_path), "%s/%s-chroot", main_dir, archs_list[i]);
@@ -285,6 +293,10 @@ int main() {
                 // Copia sicura della directory di codice sorgente di libslirp nel chroot (idem)
                 strncpy(args[i].thread_chroot_libslirp_dir, libslirp_source_dir, sizeof(args[i].thread_chroot_libslirp_dir) - 1);
                 args[i].thread_chroot_libslirp_dir[sizeof(args[i].thread_chroot_libslirp_dir) - 1] = '\0';
+
+                // Copia sicura della directory di codice sorgente di vdens nel chroot (idem, se il testing è abilitato)
+                strncpy(args[i].thread_chroot_vdens_dir, vdens_source_dir, sizeof(args[i].thread_chroot_vdens_dir) - 1);
+                args[i].thread_chroot_vdens_dir[sizeof(args[i].thread_chroot_vdens_dir) - 1] = '\0';
 
                 // Copia sicura del thread_target_dir (ossia dove, nel chroot, il thread dovrà inserire il binario)
                 strncpy(args[i].thread_chroot_target_dir, thread_chroot_target_dir, sizeof(args[i].thread_chroot_target_dir) - 1);
@@ -555,6 +567,8 @@ int main() {
     free(archs_list);
     free(sshlirp_repo_url);
     free(libslirp_repo_url);
+    free(vdens_repo_url);
+    free(versioning_file);
     free(main_dir);
     free(target_dir);
     free(sshlirp_source_dir);

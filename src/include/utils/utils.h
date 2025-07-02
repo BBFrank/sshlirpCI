@@ -2,9 +2,11 @@
 #define UTILS_H
 
 #include "types/types.h"
+#include <stdio.h>
 
 int execute_embedded_script(
-    const char* script_content, 
+    const char* script_content,
+    const char* script, 
     const char* arg1, 
     const char* arg2, 
     const char* arg3, 
