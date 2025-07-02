@@ -364,21 +364,21 @@ int main() {
                     char line[1024];
 
                     fprintf(log_fp, "===== Start Log from thread %s =====\n", args[i].arch);
-                    fprintf(log_fp, "--- Start Log from thread %s (Host logfile: %s) ---\n", args[i].arch, thread_log_path_on_host);
+                    fprintf(log_fp, "--- Start Log from thread %s (Host logfile - chroot setup, copy and remove sources logs: %s) ---\n", args[i].arch, thread_log_path_on_host);
                     while (fgets(line, sizeof(line), thread_log_read_on_host)) {
                         fprintf(log_fp, "%s", line);
                     }
                     fclose(thread_log_read_on_host);
-                    fprintf(log_fp, "--- End Log from thread %s (Host logfile: %s) ---\n", args[i].arch, thread_log_path_on_host);
+                    fprintf(log_fp, "--- End Log from thread %s (Host logfile - chroot setup, copy and remove sources logs: %s) ---\n", args[i].arch, thread_log_path_on_host);
 
                     // Note: if the log file exists on the host, it doesn't necessarily mean it also exists inside the chroot (an error might have occurred)
                     if (thread_log_read_in_chroot) {
-                        fprintf(log_fp, "--- Start Log from thread %s (Chroot logfile: %s) ---\n", args[i].arch, thread_log_path_in_chroot);
+                        fprintf(log_fp, "--- Start Log from thread %s (Chroot logfile - compile and testing inside chroot logs: %s) ---\n", args[i].arch, thread_log_path_in_chroot);
                         while (fgets(line, sizeof(line), thread_log_read_in_chroot)) {
                             fprintf(log_fp, "%s", line);
                         }
                         fclose(thread_log_read_in_chroot);
-                        fprintf(log_fp, "--- End Log from thread %s (Chroot logfile: %s) ---\n", args[i].arch, thread_log_path_in_chroot);
+                        fprintf(log_fp, "--- End Log from thread %s (Chroot logfile - compile and testing inside chroot logs: %s) ---\n", args[i].arch, thread_log_path_in_chroot);
                     } else {
                         fprintf(log_fp, "Warning: Could not open thread log for architecture %s in chroot: %s\n", args[i].arch, strerror(errno));
                     }

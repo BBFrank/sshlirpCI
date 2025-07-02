@@ -105,24 +105,6 @@ fi
 # Compilo sshlirp
 echo "From compile.sh (inside chroot): Compiling sshlirp..."
 
-# Se sono su trixie devo prima modificare il CMakeLists.txt per correggere l'importazione dei simboli
-# di sysprof (aggiungere fake.c - se esistente nella directory di sshlirp source - nell'add_executable(sshlirp sshlirp.c libvdeslirp.c libvdestream.c autoopt.c),
-# che quindi deve diventare: add_executable(sshlirp sshlirp.c libvdeslirp.c libvdestream.c autoopt.c fake.c)
-if [ "$arch" != "arm64" ]; then          <-- modificato da specifiche => utilizzare trixie per tutte le arches (non si può usare su arm64 in quanto trixie - unstable - blocca l'unpacking del base system su arm64)
-    echo "From compile.sh (inside chroot): Modifying CMakeLists.txt for trixie release..."
-    # Controllo se fake.c esiste
-    if [ -f "fake.c" ]; then
-        echo "From compile.sh (inside chroot): fake.c found, modifying CMakeLists.txt..."
-        sed -i 's/add_executable(sshlirp sshlirp.c libvdeslirp.c libvdestream.c autoopt.c)/add_executable(sshlirp sshlirp.c libvdeslirp.c libvdestream.c autoopt.c fake.c)/' CMakeLists.txt
-        if [ \$? -ne 0 ]; then
-            echo "Error: From compile.sh (inside chroot): Failed to modify CMakeLists.txt."
-            exit 1
-        fi
-    else
-        echo "Warning: From compile.sh (inside chroot): fake.c not found, skipping modification of CMakeLists.txt."
-    fi
-fi
-
 # Creo la directory di build e mi sposto in essa
 mkdir -p build
 cd build
@@ -132,7 +114,7 @@ if [ \$? -ne 0 ]; then
 fi
 
 # Configuro il progetto con CMake
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$target_chroot_dir" -DCMAKE_EXE_LINKER_FLAGS="-static"
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$target_chroot_dir"
 if [ \$? -ne 0 ]; then
     echo "Error: From compile.sh (inside chroot): Failed to configure CMake for sshlirp."
     exit 1
@@ -160,21 +142,31 @@ if [ \$? -ne 0 ]; then
     exit 1
 fi
 
-# Verifico che il binario sia stato installato correttamente e che sia un eseguibile statico. Infine lo
-# rinomino come sshlirp-<arch>
-if [ ! -f "$target_chroot_dir/bin/sshlirp" ]; then
-    echo "Error: From compile.sh (inside chroot): Expected binary sshlirp not found in $target_chroot_dir/bin."
+# Estraggo l'architettura dal sistema per sapere come si chiamerà il binario
+binary_arch=\$(uname -m)
+if [ -z "\$binary_arch" ]; then
+    echo "Error: From compile.sh (inside chroot): Could not determine binary architecture using uname -m."
     exit 1
 fi
-if ! file "$target_chroot_dir/bin/sshlirp" | grep -q "statically linked"; then
-    echo "Error: From compile.sh (inside chroot): $target_chroot_dir/bin/sshlirp is not a statically linked executable."
+
+# Verifico che il binario sia stato installato correttamente e che sia un eseguibile statico. Infine lo rinomino come sshlirp-<arch>
+if [ ! -f "$target_chroot_dir/bin/sshlirp-\$binary_arch" ]; then
+    echo "Error: From compile.sh (inside chroot): Expected binary sshlirp-\$binary_arch not found in $target_chroot_dir/bin for architecture $arch."
     exit 1
 fi
-mv "$target_chroot_dir/bin/sshlirp" "$target_chroot_dir/bin/sshlirp-$arch"
-if [ \$? -ne 0 ]; then
-    echo "Error: From compile.sh (inside chroot): Failed to rename sshlirp binary to sshlirp-$arch."
+if ! file "$target_chroot_dir/bin/sshlirp-\$binary_arch" | grep -q "statically linked"; then
+    echo "Error: From compile.sh (inside chroot): $target_chroot_dir/bin/sshlirp-\$binary_arch is not a statically linked executable."
     exit 1
 fi
+
+# Rinomino il binario in sshlirp-<arch> solo se binario_arch è diverso da arch
+    if [ "\$binary_arch" != "$arch" ]; then
+    mv "$target_chroot_dir/bin/sshlirp-\$binary_arch" "$target_chroot_dir/bin/sshlirp-$arch"
+    if [ \$? -ne 0 ]; then
+        echo "Error: From compile.sh (inside chroot): Failed to rename sshlirp-\$binary_arch binary to sshlirp-$arch."
+        exit 1
+    fi
+}
 
 echo "From compile.sh (inside chroot): sshlirp compiled and installed successfully as sshlirp-$arch in $target_chroot_dir/bin."
 exit 0

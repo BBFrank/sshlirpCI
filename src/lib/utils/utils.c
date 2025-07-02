@@ -8,7 +8,7 @@
 #include "types/types.h"
 
 // Helper function to create, write, make executable, and then remove a temporary script
-// Note: this function is called for both git clone and check commit. In general, the return values of scripts launched with system() are as follows:
+// Note: this function is called for both git clone and check commit. In general, the return values of scripts launched with system_safes() are as follows:
 // 1: error
 // 0: I did nothing (e.g., I have nothing to clone because the repo already exists or I haven't pulled anything new)
 // 2: I did something (e.g., I cloned the repo or pulled a new commit)
@@ -58,12 +58,12 @@ int execute_embedded_script(
         return 1;
     }
 
-    int status = system(command);
+    int status = system_safe(command);
     
     remove(temp_script_path);
 
     if (status == -1) {
-        fprintf(log_fp, "system() call to execute temp script failed");
+        fprintf(log_fp, "system_safe() call to execute temp script failed");
         return 1;
     }
     
@@ -133,12 +133,12 @@ int execute_embedded_script_for_thread(
         return 1;
     }
 
-    int status = system(command);
+    int status = system_safe(command);
     
     remove(temp_script_path);
 
     if (status == -1) {
-        fprintf(log_fp, "system() call to execute temp script failed");
+        fprintf(log_fp, "system_safe() call to execute temp script failed");
         return 1;
     }
     

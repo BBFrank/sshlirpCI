@@ -25,7 +25,7 @@ add_executable(sshlirp_ci_start ${START_SOURCES})
 add_executable(sshlirp_ci_stop ${STOP_SOURCES})
 
 find_package(Threads REQUIRED)
-target_link_libraries(sshlirp_ci_start PRIVATE Threads::Threads)
+target_link_libraries(sshlirp_ci_start PRIVATE Threads::Threads execs)
 
 target_link_options(sshlirp_ci_start PRIVATE "-static")
 target_link_options(sshlirp_ci_stop PRIVATE "-static")
