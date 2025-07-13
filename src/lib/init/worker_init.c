@@ -7,11 +7,6 @@
 #include <errno.h>
 #include <time.h>
 #include "init/worker_init.h"
-#include "scripts/chroot_setup_script.h"
-#include "scripts/copy_source_script.h"
-#include "scripts/compile_script.h"
-#include "scripts/remove_source_copy_script.h"
-#include "scripts/modify_vdens_script.h"
 #include "utils/utils.h"
 
 // Function to configure the chroot for the thread (creates the chroot directory, executes the chroot setup script)
@@ -25,8 +20,7 @@ int setup_chroot(thread_args_t* args, FILE* thread_log_fp) {
     // Execute the chroot setup script
     int script_status = execute_embedded_script_for_thread(
         args->arch,
-        chroot_setup_script_content,
-        "chroot_setup",
+        CHROOT_SETUP_SCRIPT_PATH,
         args->arch,
         args->chroot_path,
         args->thread_log_file,
@@ -116,8 +110,7 @@ int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
     // Execute the script to copy sources into the chroot (I don't perform the actual chroot yet) for sshlirp
     int script_status = execute_embedded_script_for_thread(
         args->arch,
-        copy_source_script_content,
-        "copy_sources",
+        COPY_SOURCE_SCRIPT_PATH,
         args->sshlirp_host_source_dir,
         args->chroot_path,
         args->thread_chroot_sshlirp_dir,
@@ -134,8 +127,7 @@ int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
     // Now for libslirp
     script_status = execute_embedded_script_for_thread(
         args->arch,
-        copy_source_script_content,
-        "copy_sources",
+        COPY_SOURCE_SCRIPT_PATH,
         args->libslirp_host_source_dir,
         args->chroot_path,
         args->thread_chroot_libslirp_dir,
@@ -160,8 +152,7 @@ int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
     // Execute the script to modify the vdens.c file to disable namespaces (they cause errors in the chroot)
     script_status = execute_embedded_script_for_thread(
         args->arch,
-        modify_vdens_script_content, 
-        "modify_vdens", 
+        MODIFY_VDENS_SCRIPT_PATH,
         vdens_c_path, 
         args->thread_log_file, 
         NULL, NULL, NULL, NULL,
@@ -176,8 +167,7 @@ int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
     // Execute the copy script
     script_status = execute_embedded_script_for_thread(
         args->arch,
-        copy_source_script_content,
-        "copy_sources",
+        COPY_SOURCE_SCRIPT_PATH,
         args->vdens_host_source_dir,
         args->chroot_path,
         args->thread_chroot_vdens_dir,
@@ -201,8 +191,7 @@ int compile_and_verify_in_chroot(thread_args_t* args, FILE* thread_log_fp) {
     // Execute the compilation script inside the chroot
     int script_status = execute_embedded_script_for_thread(
         args->arch,
-        compile_script_content,
-        "compile_sshlirp",
+        COMPILE_SCRIPT_PATH,
         args->chroot_path,
         args->thread_chroot_sshlirp_dir,
         args->thread_chroot_libslirp_dir,
@@ -224,8 +213,7 @@ int remove_sources_copy_from_chroot(thread_args_t* args, FILE* thread_log_fp) {
     // Execute the script to remove sources inside the chroot
     int script_status = execute_embedded_script_for_thread(
         args->arch,
-        remove_source_copy_script_content,
-        "remove_sources_copy",
+        REMOVE_SOURCE_SCRIPT_PATH,
         args->chroot_path,
         args->thread_chroot_sshlirp_dir,
         args->thread_chroot_libslirp_dir,

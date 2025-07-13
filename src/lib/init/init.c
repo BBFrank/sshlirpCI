@@ -5,8 +5,6 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include "init/init.h"
-#include "scripts/git_clone_script.h"
-#include "scripts/check_commit_script.h"
 #include "utils/utils.h"
 
 // Function to load architectures from the configuration file
@@ -121,7 +119,7 @@ static void load_path(const char* key, char* path) {
 static void load_poll_interval(int* poll_interval) {
     FILE* fp = fopen(DEFAULT_CONFIG_PATH, "r");
     if (!fp) {
-        perror("Error: Error opening config file, please check the path in /src/include/types/types.h, row 6.");
+        perror("Error: Error opening config file, please check the sshlirpCI source path in /src/include/types/types.h, row 4.");
         *poll_interval = 0;
         return;
     }
@@ -384,8 +382,7 @@ commit_status_t check_host_dirs(
     int script_status;
 
     script_status = execute_embedded_script(
-        git_clone_script_content, 
-        "git_clone",
+        GIT_CLONE_SCRIPT_PATH,
         sshlirp_repo_url, 
         sshlirp_source_dir, 
         log_file, 
@@ -400,8 +397,7 @@ commit_status_t check_host_dirs(
 
     // Note: in the case of git clone of libslirp I don't pass the versioning_file, because otherwise the script would write the latest version of libslirp to it
     script_status = execute_embedded_script(
-        git_clone_script_content,
-        "git_clone",
+        GIT_CLONE_SCRIPT_PATH,
         libslirp_repo_url, 
         libslirp_source_dir, 
         log_file, 
@@ -417,8 +413,7 @@ commit_status_t check_host_dirs(
 #ifdef TEST_ENABLED
     // Clone the vdens repo only if testing is enabled and I don't pass the versioning file
     script_status = execute_embedded_script(
-        git_clone_script_content,
-        "git_clone",
+        GIT_CLONE_SCRIPT_PATH,
         vdens_repo_url, 
         vdens_source_dir, 
         log_file, 
@@ -449,8 +444,7 @@ commit_status_t check_host_dirs(
 commit_status_t check_new_commit(char* sshlirp_source_dir, char* sshlirp_repo_url, char* libslirp_source_dir, char* libslirp_repo_url, char* log_file, FILE* log_fp, char* versioning_file) {
     commit_status_t result = {1, NULL};
     int script_status = execute_embedded_script(
-        check_commit_script_content, 
-        "check_commit",
+        CHECK_COMMIT_SCRIPT_PATH,
         sshlirp_source_dir, 
         sshlirp_repo_url, 
         libslirp_source_dir, 

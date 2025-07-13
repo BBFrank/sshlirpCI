@@ -14,8 +14,7 @@
 // 2: I did something (e.g., I cloned the repo or pulled a new commit)
 // When errors occur outside the script (but still in this function), I return -1.
 int execute_embedded_script(
-    const char* script_content, 
-    const char* script,
+    const char* script_path,
     const char* arg1, 
     const char* arg2, 
     const char* arg3,
@@ -24,43 +23,22 @@ int execute_embedded_script(
     const char* versioning_file,
     FILE* log_fp
 ) {
-    char temp_script_path[] = "/tmp/ci_script_XXXXXX";
-    int fd = mkstemp(temp_script_path);
-    if (fd == -1) {
-        fprintf(log_fp, "mkstemp failed: %s\n", strerror(errno));
-        return 1;
-   }
-
-    ssize_t to_write = strlen(script_content);
-    if (write(fd, script_content, to_write) != to_write) {
-        fprintf(log_fp, "write to temp script failed: %s\n", strerror(errno));
-        close(fd);
-        remove(temp_script_path);
+    if (chmod(script_path, 0700) == -1) {
+        fprintf(log_fp, "Failed to make script executable: %s\n", strerror(errno));
         return 1;
     }
-    close(fd);
-
-    if (chmod(temp_script_path, 0700) == -1) {
-        fprintf(log_fp, "chmod on temp script failed: %s\n", strerror(errno));
-        remove(temp_script_path);
-        return 1;
-    }
-
     char command[MAX_COMMAND_LEN];
 
-    if (strcmp(script, "git_clone") == 0) {
-        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3, versioning_file);
-    } else if (strcmp(script, "check_commit") == 0) {
-        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3, arg4, arg5, versioning_file);
+    if (strcmp(script_path, GIT_CLONE_SCRIPT_PATH) == 0) {
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\"", script_path, arg1, arg2, arg3, versioning_file);
+    } else if (strcmp(script_path, CHECK_COMMIT_SCRIPT_PATH) == 0) {
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", script_path, arg1, arg2, arg3, arg4, arg5, versioning_file);
     } else {
-        fprintf(log_fp, "Unknown script name: %s\n", script);
-        remove(temp_script_path);
+        fprintf(log_fp, "Unknown script path: %s\n", script_path);
         return 1;
     }
 
     int status = system_safe(command);
-    
-    remove(temp_script_path);
 
     if (status == -1) {
         fprintf(log_fp, "system_safe() call to execute temp script failed");
@@ -72,7 +50,7 @@ int execute_embedded_script(
     }
 
     // If the script did not terminate normally, print an error message
-    fprintf(log_fp, "Temporary script terminated abnormally. Status: %d\n", status);
+    fprintf(log_fp, "Script terminated abnormally. Status: %d\n", status);
     return 1;
 }
 
@@ -81,8 +59,7 @@ int execute_embedded_script(
 // do not need to return special values for the execution of other operations
 int execute_embedded_script_for_thread(
     const char* arch,
-    const char* script_content,
-    const char* script_name,
+    const char* script_path,
     const char* arg1,
     const char* arg2,
     const char* arg3,
@@ -91,51 +68,30 @@ int execute_embedded_script_for_thread(
     const char* arg6,
     FILE* log_fp
 ) {
-    char temp_script_path[] = "/tmp/ci_script_XXXXXX";
-    int fd = mkstemp(temp_script_path);
-    if (fd == -1) {
-        fprintf(log_fp, "[Thread %s] mkstemp for %s failed: %s\n", arch, script_name, strerror(errno));
+    if (chmod(script_path, 0700) == -1) {
+        fprintf(log_fp, "[Thread %s] Failed to make script executable: %s\n", arch, strerror(errno));
         return 1;
     }
-
-    ssize_t to_write = strlen(script_content);
-    if (write(fd, script_content, to_write) != to_write) {
-        fprintf(log_fp, "[Thread %s] write to temp script %s failed: %s\n", arch, script_name, strerror(errno));
-        close(fd);
-        remove(temp_script_path);
-        return 1;
-    }
-    close(fd);
-
-    if (chmod(temp_script_path, 0700) == -1) {
-        fprintf(log_fp, "[Thread %s] chmod on temp script %s failed: %s\n", arch, script_name, strerror(errno));
-        remove(temp_script_path);
-        return 1;
-    }
-
     char command[MAX_COMMAND_LEN];
 
-    if (strcmp(script_name, "chroot_setup") == 0) {
-        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3);
-    } else if (strcmp(script_name, "copy_sources") == 0) {
-        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3, arg4);
-    } else if (strcmp(script_name, "compile_sshlirp") == 0) {
-        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3, arg4, arg5, arg6);
-    } else if (strcmp(script_name, "remove_sources_copy") == 0) {
-        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3, arg4);
-    } else if (strcmp(script_name, "modify_vdens") == 0) {
-        snprintf(command, sizeof(command), "%s \"%s\" \"%s\"", temp_script_path, arg1, arg2);
-    } else if (strcmp(script_name, "test_script") == 0) {
-        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", temp_script_path, arg1, arg2, arg3, arg4, arg5);
+    if (strcmp(script_path, CHROOT_SETUP_SCRIPT_PATH) == 0) {
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\"", script_path, arg1, arg2, arg3);
+    } else if (strcmp(script_path, COPY_SOURCE_SCRIPT_PATH) == 0) {
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\"", script_path, arg1, arg2, arg3, arg4);
+    } else if (strcmp(script_path, COMPILE_SCRIPT_PATH) == 0) {
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", script_path, arg1, arg2, arg3, arg4, arg5, arg6);
+    } else if (strcmp(script_path, REMOVE_SOURCE_SCRIPT_PATH) == 0) {
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\"", script_path, arg1, arg2, arg3, arg4);
+    } else if (strcmp(script_path, MODIFY_VDENS_SCRIPT_PATH) == 0) {
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\"", script_path, arg1, arg2);
+    } else if (strcmp(script_path, TEST_SCRIPT_PATH) == 0) {
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", script_path, arg1, arg2, arg3, arg4, arg5);
     } else {
-        fprintf(log_fp, "[Thread %s] Unknown script name: %s\n", arch, script_name);
-        remove(temp_script_path);
+        fprintf(log_fp, "[Thread %s] Unknown script path: %s\n", arch, script_path);
         return 1;
     }
 
     int status = system_safe(command);
-    
-    remove(temp_script_path);
 
     if (status == -1) {
         fprintf(log_fp, "system_safe() call to execute temp script failed");
@@ -146,7 +102,7 @@ int execute_embedded_script_for_thread(
         return WEXITSTATUS(status);
     }
 
-    fprintf(log_fp, "Temporary script terminated abnormally. Status: %d\n", status);
+    fprintf(log_fp, "[Thread %s] Script terminated abnormally. Status: %d\n", arch, status);
     return 1;
 }
 

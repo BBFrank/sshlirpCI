@@ -1,11 +1,21 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#define TEST_ENABLED 1
+#define SSHLIRPCI_SOURCE_DIR ""                         // Substitute with the actual absolute path of the sshlirpCI source directory (path/to/sshlirpCI)
+#define TEST_ENABLED 1                                  // Set to 1 to enable testing, 0 to disable
 
 #include <pthread.h>
 
-#define DEFAULT_CONFIG_PATH "/home/francesco/Scrivania/terzo_anno/Sistemi_Virtuali/sshlirp/sshlirpCI/sshlirpCI/ci.conf"
+#define DEFAULT_CONFIG_PATH SSHLIRPCI_SOURCE_DIR "/ci.conf"
+#define CHECK_COMMIT_SCRIPT_PATH SSHLIRPCI_SOURCE_DIR "/script/checkCommit.sh"
+#define CHROOT_SETUP_SCRIPT_PATH SSHLIRPCI_SOURCE_DIR "/script/chrootSetup.sh"
+#define COMPILE_SCRIPT_PATH SSHLIRPCI_SOURCE_DIR "/script/compile.sh"
+#define COPY_SOURCE_SCRIPT_PATH SSHLIRPCI_SOURCE_DIR "/script/copySource.sh"
+#define GIT_CLONE_SCRIPT_PATH SSHLIRPCI_SOURCE_DIR "/script/gitClone.sh"
+#define MODIFY_VDENS_SCRIPT_PATH SSHLIRPCI_SOURCE_DIR "/script/modifyVdens.sh"
+#define REMOVE_SOURCE_SCRIPT_PATH SSHLIRPCI_SOURCE_DIR "/script/removeSourceCopy.sh"
+#define TEST_SCRIPT_PATH SSHLIRPCI_SOURCE_DIR "/script/test.sh"
+
 #define CONFIG_SSHLIRP_KEY "SSHLIRP_REPO_URL="
 #define CONFIG_LIBSLIRP_KEY "LIBSLIRP_REPO_URL="
 #define CONFIG_VDENS_REPO_URL_KEY "VDENS_REPO_URL="

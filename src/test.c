@@ -7,8 +7,6 @@
 #include <signal.h>
 #include <errno.h>
 #include "utils/utils.h"
-#include "scripts/test_script.h"
-#include "scripts/git_clone_script.h"
 #include "test.h"
 
 int test_sshlirp_bin(thread_args_t *args, char *sshlirp_bin_path, FILE *host_log_fp) {
@@ -17,8 +15,7 @@ int test_sshlirp_bin(thread_args_t *args, char *sshlirp_bin_path, FILE *host_log
 
     script_status = execute_embedded_script_for_thread(
         args->arch,
-        test_script_content, 
-        "test_script", 
+        TEST_SCRIPT_PATH,
         sshlirp_bin_path, 
         args->chroot_path,
         args->thread_chroot_vdens_dir, 

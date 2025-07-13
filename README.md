@@ -54,10 +54,10 @@ Currently, sshlirpCI is available on a GitHub repository and can be cloned using
 git clone https://github.com/BBFrank/sshlirpCI.git
 ```
 
-Once the repository is cloned, you will need to modify the only hardcoded path in the code, which is the path that tells the program the location of `ci.conf`. The modification must be made in the `src/include/types/types.h` file, replacing line 6 with:
+Once the repository is cloned, you will need to modify the only hardcoded path in the code, which is the path that tells the program the location of `ssshlirpCI` directory. The modification must be made in the `src/include/types/types.h` file, replacing line 4 with:
 
 ```c
-#define DEFAULT_CONFIG_PATH "/path/to/sshlirpCI/ci.conf"
+#define DEFAULT_CONFIG_PATH "/path/to/sshlirpCI"
 ```
     
 (where `/path/to/sshlirpCI` is the path where the sshlirpCI repository was cloned)

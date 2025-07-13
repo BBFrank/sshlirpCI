@@ -229,8 +229,8 @@ int main() {
             initial_check = check_host_dirs(target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, thread_log_dir, log_fp, versioning_file);
 
             // Note: this function does nothing if the dirs already exist and if the git repo already exists (possible in case of a crash or interruption)
-            if (initial_check.status == 1) {
-                fprintf(log_fp, "Error: Error during search or creation of host directories, log file, or during repository cloning.\n");
+            if (initial_check.status != 0 && initial_check.status != 2) {
+                fprintf(log_fp, "Error: Error during search or creation of host directories, log file, or during repository cloning. Status: %d\n", initial_check.status);
                 terminate_daemon_flag = 1;
                 break;
             }
@@ -521,7 +521,7 @@ int main() {
 
         // According to the previous considerations, it is possible to summarize the possible outcomes of the checks in the following cases:
         else if (new_commit.status == 1) {
-            fprintf(log_fp, "Error: Error during check_new_commit. Exiting daemon...\n");
+            fprintf(log_fp, "Error: Error during check_new_commit() or check_host_dirs() call. Exiting daemon...\n");
             break;
         }
         else {                                                  // new_commit.status == 0

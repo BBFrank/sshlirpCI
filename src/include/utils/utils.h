@@ -5,8 +5,7 @@
 #include <stdio.h>
 
 int execute_embedded_script(
-    const char* script_content,
-    const char* script, 
+    const char* script_path,
     const char* arg1, 
     const char* arg2, 
     const char* arg3, 
@@ -18,8 +17,7 @@ int execute_embedded_script(
 
 int execute_embedded_script_for_thread(
     const char* arch,
-    const char* script_content,
-    const char* script_name,
+    const char* script_path,
     const char* arg1,
     const char* arg2,
     const char* arg3,
