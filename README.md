@@ -84,7 +84,7 @@ LOG_FILE=/path/to/main/sshlirpCI/log/main_sshlirp.log
 ```
 (where `/path/to/main/sshlirpCI` is the path of the main sshlirpCI directory, i.e. the directory in which you want the program to build the root filesystems, clone the sources, perform the testing phase, and place the logs and target binaries)
 
-In this context it is recommended to use absolute paths on which the user has read/write permissions. If you want to proceed differently you must satisfy the permission requirements indicated in the section [Permissions](#permissions), and apply the changes suggested in the section [Modifying permissions](#modifying-permissions---only-for-tests-and-ci.conf-with-privileged-directories).
+In this context it is recommended to use absolute paths on which the user has read/write permissions. If you want to proceed differently you must satisfy the permission requirements indicated in the section [Permissions](#permissions), and apply the changes suggested in the section [Modifying permissions](#modifying-permissions---only-for-tests-and-ciconf-with-privileged-directories).
 
 ## Compilation
 
