@@ -21,14 +21,19 @@ set(STOP_SOURCES
     src/stop.c
 )
 
+set(KILLER_SOURCES
+    src/killer.c
+)
+
 add_executable(sshlirp_ci_start ${START_SOURCES})
 add_executable(sshlirp_ci_stop ${STOP_SOURCES})
+add_executable(sshlirp_ci_instant_killer ${KILLER_SOURCES})
 
 find_package(Threads REQUIRED)
 target_link_libraries(sshlirp_ci_start PRIVATE Threads::Threads execs)
 
 target_link_options(sshlirp_ci_start PRIVATE "-static")
 target_link_options(sshlirp_ci_stop PRIVATE "-static")
+target_link_options(sshlirp_ci_instant_killer PRIVATE "-static")
 
-
-message(STATUS "Configuring sshlirp_ci_start and sshlirp_ci_stop for static linking.")
+message(STATUS "Configuring sshlirp_ci_start, sshlirp_ci_stop and sshlirp_ci_instant_killer for static linking.")

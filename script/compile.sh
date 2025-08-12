@@ -31,19 +31,30 @@ if [ ! -d "$chroot_path" ]; then
     exit 1
 fi
 
-# Enter the chroot by starting a shell that takes the here document code as input (EOF...EOF)
-# Note: this is necessary because the default behavior of chroot is to open an interactive shell, and that's it ->
-# the parent process would then wait indefinitely for the shell to close, which would never happen, as the commands specified
-# after chroot are to be executed on the host.
-# This way, it's as if a command to be executed is given as input to the chroot shell.
-# Note: this is not the most elegant solution because a large and complex script is still passed as a command line to the new shell...
-# The ideal would be to create a separate shell script and pass it as an argument to chroot...
-sudo chroot "$chroot_path" /bin/bash <<EOF
+enter_bin="$chroot_path/_enter"
+if [ ! -x "$enter_bin" ]; then
+    echo "Error: From compile.sh: _enter script not found or not executable in $chroot_path (expected $enter_bin)."
+    exit 1
+fi
+
+# Avvio ambiente rootless tramite _enter (fakeroot+unshare) e passo script via here-doc
+"$enter_bin" /bin/bash <<EOF
 
 # Check if the directory where I will put the binaries in the chroot exists
 if [ ! -d "$target_chroot_dir" ]; then
-    echo "Error: From compile.sh (inside chroot): Target chroot directory $target_chroot_dir does not exist in $arch chroot."
-    exit 1
+    echo "Warning: From compile.sh (inside chroot): Target chroot directory $target_chroot_dir does not exist in $arch chroot. Something very strange happened... (it should have been created by the setup fun)"
+    # If a file with that name exists, remove it
+    if [ -f "$target_chroot_dir" ]; then
+        echo "Warning: From compile.sh (inside chroot): A file with the name $target_chroot_dir exists. Removing it."
+        rm -f "$target_chroot_dir"
+    fi
+    # Create the target directory
+    mkdir -p "$target_chroot_dir"
+    if [ \$? -ne 0 ]; then
+        echo "Error: From compile.sh (inside chroot): Failed to create target chroot directory $target_chroot_dir."
+        exit 1
+    fi
+    echo "From compile.sh (inside chroot): Target chroot directory $target_chroot_dir created."
 fi
 
 # Install the dependencies necessary for compilation
@@ -53,15 +64,24 @@ if [ \$? -ne 0 ]; then
     echo "Error: From compile.sh (inside chroot): Failed to update package list."
     exit 1
 fi
-apt install -y build-essential git devscripts debhelper dh-exec \\
-            libglib2.0-dev pkg-config \\
+apt-get install -y build-essential git devscripts debhelper dh-exec \\
+            libglib2.0-dev pkg-config adduser \\
             gcc g++ libcap-ng-dev libseccomp-dev \\
 	        cmake git-buildpackage meson ninja-build \\
 	        libvdeplug-dev libvdeslirp-dev
 
 if [ \$? -ne 0 ]; then
-    echo "Error: From compile.sh (inside chroot): Failed to install build dependencies."
-    exit 1
+    echo "Error: From compile.sh (inside chroot): Failed to install build dependencies (probably due to bookworm). Retrying..."
+    apt-get update
+    apt-get install -y build-essential git devscripts debhelper dh-exec \\
+            libglib2.0-dev pkg-config adduser \\
+            gcc g++ libcap-ng-dev libseccomp-dev \\
+	        cmake git-buildpackage meson ninja-build \\
+	        libvdeplug-dev libvdeslirp-dev
+    if [ \$? -ne 0 ]; then
+        echo "Error: From compile.sh (inside chroot): Failed to install build dependencies after retry."
+        exit 1
+    fi
 fi
 
 # Move to the libslirp source directory inside the chroot

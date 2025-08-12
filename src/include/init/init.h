@@ -5,21 +5,14 @@
 
 // Dichiarazioni delle funzioni da init.c
 int conf_vars_loader(
-    char** archs, 
+    char** archs_list, 
     int* num_archs, 
     char* sshlirp_repo_url, 
     char* libslirp_repo_url, 
-    char* vdens_repo_url, 
-    char* main_dir, 
-    char* versioning_file,
-    char* target_dir, 
-    char* sshlirp_source_dir, 
-    char* libslirp_source_dir, 
-    char* vdens_source_dir,
-    char* log_file, 
-    char* thread_chroot_target_dir,
-    char* thread_chroot_log_file,
-    char* thread_log_dir, 
+    char* vdens_repo_url,
+    char* main_dir,
+    char* target_dir,
+    char* log_file,
     int* poll_interval);
 
 commit_status_t check_host_dirs(

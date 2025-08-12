@@ -19,7 +19,7 @@ chroot_src_full_path="$chroot_path$thread_chroot_src_dir"
 
 # Crea le directory di destinazione dentro il chroot se non esistono (in teoria dovrebbero essere già esistenti grazie alla funzione check_worker_dirs invocata dal worker)
 echo "From copySource.sh: Ensuring copy point $chroot_src_full_path exists."
-sudo mkdir -p "$chroot_src_full_path"
+mkdir -p "$chroot_src_full_path"
 if [ $? -ne 0 ]; then
     echo " Error: From copySource.sh: Error creating copy point $chroot_src_full_path."
     exit 1
@@ -31,7 +31,7 @@ if [ -d "$chroot_src_full_path/.git" ]; then
     echo "From copySource.sh: $host_src already copied to $chroot_src_full_path."
 else
     echo "From copySource.sh: Copying $host_src to $chroot_src_full_path"
-    sudo cp -rT "$host_src" "$chroot_src_full_path"
+    cp -rT "$host_src" "$chroot_src_full_path"
     if [ $? -ne 0 ]; then
         echo "Error: From copySource.sh: Error copying $host_src to $chroot_src_full_path."
         exit 1

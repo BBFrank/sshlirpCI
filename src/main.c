@@ -82,24 +82,26 @@ static void log_time(FILE *log_file) {
     fprintf(log_file, "[%s] ", time_buffer);
 }
 
+static int started_via_sudo() {
+    const char *sudo_user = getenv("SUDO_USER");
+    if (getuid() == 0 && sudo_user && sudo_user[0] != '\0') {
+        return 1;
+    }
+    return 0;
+}
+
 int main() {
     // 0. Load variables from the configuration file
     char** archs_list = (char**)malloc(MAX_ARCHITECTURES * sizeof(char*));
     int num_archs = 0;
-    char *sshlirp_repo_url = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
-    char *libslirp_repo_url = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
-    char *vdens_repo_url = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
-    char *main_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
-    char *versioning_file = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
-    char *target_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
-    char *sshlirp_source_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
-    char *libslirp_source_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
-    char *vdens_source_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
-    char *log_file = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
-    char *thread_chroot_target_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
-    char *thread_chroot_log_file = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
-    char *thread_log_dir = (char*)malloc(MAX_CONFIG_ATTR_LEN * sizeof(char));
+    char *sshlirp_repo_url = (char*)malloc((MIN_CONFIG_ATTR_LEN) * sizeof(char));
+    char *libslirp_repo_url = (char*)malloc((MIN_CONFIG_ATTR_LEN) * sizeof(char));
+    char *vdens_repo_url = (char*)malloc((MIN_CONFIG_ATTR_LEN) * sizeof(char));
+    char *main_dir = (char*)malloc((MIN_CONFIG_ATTR_LEN) * sizeof(char));
+    char *target_dir = (char*)malloc((MIN_CONFIG_ATTR_LEN) * sizeof(char));
+    char *log_file = (char*)malloc((MIN_CONFIG_ATTR_LEN) * sizeof(char));
     int poll_interval = 0;
+
     // Note: the mutex will only be necessary for the chroot setup, a very expensive operation that, if performed in parallel
     // for many architectures, risks race conditions
     pthread_mutex_t chroot_setup_mutex;
@@ -115,22 +117,36 @@ int main() {
             libslirp_repo_url, 
             vdens_repo_url,
             main_dir,
-            versioning_file,
-            target_dir, 
-            sshlirp_source_dir,
-            libslirp_source_dir,
-            vdens_source_dir,
-            log_file, 
-            thread_chroot_target_dir,
-            thread_chroot_log_file,
-            thread_log_dir,
+            target_dir,
+            log_file,
             &poll_interval) != 0) {
         fprintf(stderr, "Failed to load configuration variables. Exiting.\n");
         // (freeing previously allocated memory, in case of error, is handled by conf_vars_loader itself)
         return 1;
     }
-    
     printf("Configuration loaded successfully.\n");
+
+    // Variables to pass to the threads and buildable from the previous ones
+    char versioning_file[CONFIG_ATTR_LEN];
+    char sshlirp_source_dir[CONFIG_ATTR_LEN];
+    char libslirp_source_dir[CONFIG_ATTR_LEN];
+    char vdens_source_dir[CONFIG_ATTR_LEN];
+    char thread_log_dir[CONFIG_ATTR_LEN];
+
+    // Hardcoded thread chroot directories
+    char *thread_chroot_main_dir = "/home/sshlirpCI";
+    char *thread_chroot_target_dir = "/home/sshlirpCI/thread_binaries";
+    char *thread_chroot_sshlirp_dir = "/home/sshlirpCI/thread_sshlirp";
+    char *thread_chroot_libslirp_dir = "/home/sshlirpCI/thread_libslirp";
+    char *thread_chroot_vdens_dir = "/home/sshlirpCI/thread_vdens";
+    char *thread_chroot_log_file = "/home/sshlirpCI/log/thread_sshlirpCI.log";
+
+    snprintf(versioning_file, sizeof(versioning_file), "%s/versions.txt", main_dir);
+    snprintf(sshlirp_source_dir, sizeof(sshlirp_source_dir), "%s/sshlirp", main_dir);
+    snprintf(libslirp_source_dir, sizeof(libslirp_source_dir), "%s/libslirp", main_dir);
+    snprintf(vdens_source_dir, sizeof(vdens_source_dir), "%s/vdens", main_dir);
+    snprintf(thread_log_dir, sizeof(thread_log_dir), "%s/log/threads", main_dir);
+
     printf("Checking for active daemon instances...\n");
 
     // 1. Check if another instance of the daemon is already running
@@ -147,8 +163,11 @@ int main() {
         fclose(pid_fp_check);
     }
 
-    printf("Daemonizing... Logs will be available in %s. To terminate the process, run: sudo ./sshlirp_ci_stop\n", log_file);
-    
+    // Check if the program was launched with sudo
+    int sudo_user = started_via_sudo();
+
+    printf("Daemonizing... Logs will be available in %s. To terminate the process, run:%s./sshlirp_ci_stop\n", log_file, sudo_user ? " sudo " : " ");
+
     // 2. Daemonize the process
     daemonize();
 
@@ -263,6 +282,9 @@ int main() {
                 // Inizializzo il pull_round (mi sarà utile nel thread per capire se devo setuppare il chroot, il log file locale... o meno)
                 args[i].pull_round = round;
 
+                // Passo sudo_user in modo che al momento del lancio degli script critici possa capire se eseguo come root o no
+                args[i].sudo_user = sudo_user;
+
                 // Copia sicura del nome dell'architettura
                 strncpy(args[i].arch, archs_list[i], sizeof(args[i].arch) - 1);
                 args[i].arch[sizeof(args[i].arch) - 1] = '\0';
@@ -282,20 +304,22 @@ int main() {
                 // Copia sicura del chroot_path
                 snprintf(args[i].chroot_path, sizeof(args[i].chroot_path), "%s/%s-chroot", main_dir, archs_list[i]);
 
-                // Copia sicura della directory principale del thread (ossia dove, nel chroot, il thread dovrà lavorare -> come percorso "relativo" corrisponde alla main dir dell'host)
-                strncpy(args[i].thread_chroot_main_dir, main_dir, sizeof(args[i].thread_chroot_main_dir) - 1);
+                // Copia sicura della directory principale del thread (ossia dove, nel chroot, il thread dovrà lavorare -> come percorso "relativo" non può corrispondere alla main dir dell'host
+                // in quanto nel chroot mi conviene usare un percorso semplice come /home/sshlirpCI mentre nell'host la main dir può essere configurata nel ci.conf
+                // in modo che corrisponda a un path personale dove ho i permessi di scrittura)
+                strncpy(args[i].thread_chroot_main_dir, thread_chroot_main_dir, sizeof(args[i].thread_chroot_main_dir) - 1);
                 args[i].thread_chroot_main_dir[sizeof(args[i].thread_chroot_main_dir) - 1] = '\0';
 
                 // Copia sicura della directory di codice sorgente di sshlirp nel chroot (il path relativo sarà lo stesso di quello usato nell'host)
-                strncpy(args[i].thread_chroot_sshlirp_dir, sshlirp_source_dir, sizeof(args[i].thread_chroot_sshlirp_dir) - 1);
+                strncpy(args[i].thread_chroot_sshlirp_dir, thread_chroot_sshlirp_dir, sizeof(args[i].thread_chroot_sshlirp_dir) - 1);
                 args[i].thread_chroot_sshlirp_dir[sizeof(args[i].thread_chroot_sshlirp_dir) - 1] = '\0';
 
                 // Copia sicura della directory di codice sorgente di libslirp nel chroot (idem)
-                strncpy(args[i].thread_chroot_libslirp_dir, libslirp_source_dir, sizeof(args[i].thread_chroot_libslirp_dir) - 1);
+                strncpy(args[i].thread_chroot_libslirp_dir, thread_chroot_libslirp_dir, sizeof(args[i].thread_chroot_libslirp_dir) - 1);
                 args[i].thread_chroot_libslirp_dir[sizeof(args[i].thread_chroot_libslirp_dir) - 1] = '\0';
 
                 // Copia sicura della directory di codice sorgente di vdens nel chroot (idem, se il testing è abilitato)
-                strncpy(args[i].thread_chroot_vdens_dir, vdens_source_dir, sizeof(args[i].thread_chroot_vdens_dir) - 1);
+                strncpy(args[i].thread_chroot_vdens_dir, thread_chroot_vdens_dir, sizeof(args[i].thread_chroot_vdens_dir) - 1);
                 args[i].thread_chroot_vdens_dir[sizeof(args[i].thread_chroot_vdens_dir) - 1] = '\0';
 
                 // Copia sicura del thread_target_dir (ossia dove, nel chroot, il thread dovrà inserire il binario)
@@ -319,6 +343,7 @@ int main() {
                     fprintf(log_fp, "Thread created successfully for architecture %s.\n", args[i].arch);
                 }
             }
+            fprintf(log_fp, "=======================================================================\n");
 
             // 7.3. Attendo che tutti i thread finiscano
             for (int i = 0; i < num_archs; i++) {
@@ -333,14 +358,19 @@ int main() {
                     if (thread_return_value != NULL) {
                         thread_result_t *worker_result = (thread_result_t *)thread_return_value;
                         if (worker_result->status != 0) {
-                            fprintf(log_fp, "Error: Thread for %s terminated with error: %s\n", args[i].arch, worker_result->error_message ? worker_result->error_message : "No error message.");
+                            fprintf(log_fp, "Error: Thread for %s terminated with error: %s\nHere the stats:\n----------------------------------\n%s", args[i].arch, worker_result->error_message ? worker_result->error_message : "No error message.", worker_result->stats ? worker_result->stats : "No stats available.");
+                            fprintf(log_fp, "----------------------------------\n");
                         } else {
-                            fprintf(log_fp, "Thread for %s terminated successfully.\n", args[i].arch);
+                            fprintf(log_fp, "Thread for %s terminated successfully. Here the stats:\n----------------------------------\n%s", args[i].arch, worker_result->stats ? worker_result->stats : "No stats available.");
+                            fprintf(log_fp, "----------------------------------\n");
                         }
 
                         // Free the memory allocated for the thread result
                         if (worker_result->error_message) {
                             free(worker_result->error_message);
+                        }
+                        if (worker_result->stats) {
+                            free(worker_result->stats);
                         }
                         free(worker_result);
                     } else {
@@ -568,15 +598,9 @@ int main() {
     free(sshlirp_repo_url);
     free(libslirp_repo_url);
     free(vdens_repo_url);
-    free(versioning_file);
     free(main_dir);
     free(target_dir);
-    free(sshlirp_source_dir);
-    free(libslirp_source_dir);
     free(log_file);
-    free(thread_chroot_target_dir);
-    free(thread_chroot_log_file);
-    free(thread_log_dir);
 
     return 0;
 }

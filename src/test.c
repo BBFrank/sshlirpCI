@@ -13,7 +13,7 @@ int test_sshlirp_bin(thread_args_t *args, char *sshlirp_bin_path, FILE *host_log
     // Launch the test script to complete the chroot setup for the test and its execution
     int script_status = 0;
 
-    script_status = execute_embedded_script_for_thread(
+    script_status = execute_script_for_thread(
         args->arch,
         TEST_SCRIPT_PATH,
         sshlirp_bin_path, 
@@ -21,9 +21,11 @@ int test_sshlirp_bin(thread_args_t *args, char *sshlirp_bin_path, FILE *host_log
         args->thread_chroot_vdens_dir, 
         args->thread_log_file, 
         args->thread_chroot_log_file,
-        NULL, 
+        NULL,
+        args->sudo_user,
         host_log_fp
     );
+
     if (script_status != 0) {
         fprintf(host_log_fp, "Error: Error executing test script in %s. Script exit status: %d\n", args->chroot_path, script_status);
         return 1;

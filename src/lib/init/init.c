@@ -16,7 +16,7 @@ static void load_architectures(char** archs_list, int* num_archs_out) {
         return;
     }
 
-    char line[MAX_CONFIG_LINE_LEN];
+    char line[MIN_CONFIG_ATTR_LEN];
     char* architectures_val_str = NULL;
     int count = 0;
 
@@ -100,13 +100,13 @@ static void load_path(const char* key, char* path) {
         return;
     }
 
-    char line[MAX_CONFIG_LINE_LEN];
+    char line[MIN_CONFIG_ATTR_LEN];
     while (fgets(line, sizeof(line), fp)) {
         if (strncmp(line, key, strlen(key)) == 0) {
             char* value_start = line + strlen(key);
             value_start[strcspn(value_start, "\n")] = 0;
-            strncpy(path, value_start, MAX_CONFIG_ATTR_LEN - 1);
-            path[MAX_CONFIG_ATTR_LEN - 1] = '\0';
+            strncpy(path, value_start, MIN_CONFIG_ATTR_LEN - 1);
+            path[MIN_CONFIG_ATTR_LEN - 1] = '\0';
             fclose(fp);
             return;
         }
@@ -124,7 +124,7 @@ static void load_poll_interval(int* poll_interval) {
         return;
     }
 
-    char line[MAX_CONFIG_LINE_LEN];
+    char line[CONFIG_ATTR_LEN];
     while (fgets(line, sizeof(line), fp)) {
         if (strncmp(line, CONFIG_INTERVAL_KEY, strlen(CONFIG_INTERVAL_KEY)) == 0) {
             char* value_start = line + strlen(CONFIG_INTERVAL_KEY);
@@ -151,32 +151,18 @@ static void free_resources(
     int* num_archs, 
     char* sshlirp_repo_url, 
     char* libslirp_repo_url, 
-    char* vdens_repo_url, 
-    char* main_dir, 
-    char* versioning_file,
-    char* target_dir, 
-    char* sshlirp_source_dir, 
-    char* libslirp_source_dir, 
-    char* vdens_source_dir,
-    char* log_file, 
-    char* thread_chroot_target_dir,
-    char* thread_chroot_log_file,
-    char* thread_log_dir) {
+    char* vdens_repo_url,
+    char* main_dir,
+    char* target_dir,
+    char* log_file) {
     
     free_architectures(archs, *num_archs);
     free(sshlirp_repo_url);
     free(libslirp_repo_url);
     free(vdens_repo_url);
     free(main_dir);
-    free(versioning_file);
     free(target_dir);
-    free(sshlirp_source_dir);
-    free(libslirp_source_dir);
-    free(vdens_source_dir);
     free(log_file);
-    free(thread_chroot_target_dir);
-    free(thread_chroot_log_file);
-    free(thread_log_dir);
 }
 
 // Function to load configuration variables
@@ -185,106 +171,57 @@ int conf_vars_loader(
     int* num_archs, 
     char* sshlirp_repo_url, 
     char* libslirp_repo_url, 
-    char* vdens_repo_url, 
-    char* main_dir, 
-    char* versioning_file,
-    char* target_dir, 
-    char* sshlirp_source_dir, 
-    char* libslirp_source_dir, 
-    char* vdens_source_dir,
-    char* log_file, 
-    char* thread_chroot_target_dir,
-    char* thread_chroot_log_file,
-    char* thread_log_dir, 
+    char* vdens_repo_url,
+    char* main_dir,
+    char* target_dir,
+    char* log_file,
     int* poll_interval) {
 
         load_architectures(archs, num_archs);
         if (*num_archs == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, target_dir, log_file);
             fprintf(stderr, "No architectures found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_SSHLIRP_KEY, sshlirp_repo_url);
         if (strlen(sshlirp_repo_url) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, target_dir, log_file);
             fprintf(stderr, "SSHLIRP_REPO_URL not found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_LIBSLIRP_KEY, libslirp_repo_url);
         if (strlen(libslirp_repo_url) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, target_dir, log_file);
             fprintf(stderr, "LIBSLIRP_REPO_URL not found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_MAINDIR_KEY, main_dir);
         if (strlen(main_dir) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, target_dir, log_file);
             fprintf(stderr, "MAINDIR not found in configuration.\n");
-            return 1;
-        }
-        load_path(CONFIG_VERSION_FILE_KEY, versioning_file);
-        if (strlen(versioning_file) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
-            fprintf(stderr, "VERSIONING_FILE not found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_TARGETDIR_KEY, target_dir);
         if (strlen(target_dir) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, target_dir, log_file);
             fprintf(stderr, "TARGET_DIR not found in configuration.\n");
-            return 1;
-        }
-        load_path(CONFIG_SSHLIRP_SOURCE_DIR_KEY, sshlirp_source_dir);
-        if (strlen(sshlirp_source_dir) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
-            fprintf(stderr, "SSHLIRP_SOURCE_DIR not found in configuration.\n");
-            return 1;
-        }
-        load_path(CONFIG_LIBSLIRP_SOURCE_DIR_KEY, libslirp_source_dir);
-        if (strlen(libslirp_source_dir) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
-            fprintf(stderr, "LIBSLIRP_SOURCE_DIR not found in configuration.\n");
-            return 1;
-        }
-        load_path(CONFIG_VDENS_SOURCE_DIR_KEY, vdens_source_dir);
-        if (strlen(vdens_source_dir) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
-            fprintf(stderr, "VDENS_SOURCE_DIR not found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_VDENS_REPO_URL_KEY, vdens_repo_url);
         if (strlen(vdens_repo_url) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, target_dir, log_file);
             fprintf(stderr, "VDENS_REPO_URL not found in configuration.\n");
             return 1;
         }
         load_path(CONFIG_LOG_KEY, log_file);
         if (strlen(log_file) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, target_dir, log_file);
             fprintf(stderr, "LOG_FILE not found in configuration.\n");
-            return 1;
-        }
-        load_path(CONFIG_THREAD_CHROOT_TARGET_DIR_KEY, thread_chroot_target_dir);
-        if (strlen(thread_chroot_target_dir) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
-            fprintf(stderr, "THREAD_CHROOT_TARGET_DIR not found in configuration.\n");
-            return 1;
-        }
-        load_path(CONFIG_THREAD_CHROOT_LOG_FILE_KEY, thread_chroot_log_file);
-        if (strlen(thread_chroot_log_file) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
-            fprintf(stderr, "THREAD_CHROOT_LOG_FILE not found in configuration.\n");
-            return 1;
-        }
-        load_path(CONFIG_THREAD_LOG_DIR_KEY, thread_log_dir);
-        if (strlen(thread_log_dir) == 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
-            fprintf(stderr, "THREAD_LOG_DIR not found in configuration.\n");
             return 1;
         }
         load_poll_interval(poll_interval);
         if (*poll_interval <= 0) {
-            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, versioning_file, target_dir, sshlirp_source_dir, libslirp_source_dir, vdens_source_dir, log_file, thread_chroot_target_dir, thread_chroot_log_file, thread_log_dir);
+            free_resources(archs, num_archs, sshlirp_repo_url, libslirp_repo_url, vdens_repo_url, main_dir, target_dir, log_file);
             fprintf(stderr, "POLL_INTERVAL not found or invalid in configuration.\n");
             return 1;
         }
@@ -381,7 +318,7 @@ commit_status_t check_host_dirs(
     // 2. Clone the repos in their respective paths -> launch the embedded gitClone.sh script
     int script_status;
 
-    script_status = execute_embedded_script(
+    script_status = execute_script(
         GIT_CLONE_SCRIPT_PATH,
         sshlirp_repo_url, 
         sshlirp_source_dir, 
@@ -396,7 +333,7 @@ commit_status_t check_host_dirs(
     }
 
     // Note: in the case of git clone of libslirp I don't pass the versioning_file, because otherwise the script would write the latest version of libslirp to it
-    script_status = execute_embedded_script(
+    script_status = execute_script(
         GIT_CLONE_SCRIPT_PATH,
         libslirp_repo_url, 
         libslirp_source_dir, 
@@ -412,7 +349,7 @@ commit_status_t check_host_dirs(
 
 #ifdef TEST_ENABLED
     // Clone the vdens repo only if testing is enabled and I don't pass the versioning file
-    script_status = execute_embedded_script(
+    script_status = execute_script(
         GIT_CLONE_SCRIPT_PATH,
         vdens_repo_url, 
         vdens_source_dir, 
@@ -443,7 +380,7 @@ commit_status_t check_host_dirs(
 // 2: new commits were found, the repo has been updated
 commit_status_t check_new_commit(char* sshlirp_source_dir, char* sshlirp_repo_url, char* libslirp_source_dir, char* libslirp_repo_url, char* log_file, FILE* log_fp, char* versioning_file) {
     commit_status_t result = {1, NULL};
-    int script_status = execute_embedded_script(
+    int script_status = execute_script(
         CHECK_COMMIT_SCRIPT_PATH,
         sshlirp_source_dir, 
         sshlirp_repo_url, 

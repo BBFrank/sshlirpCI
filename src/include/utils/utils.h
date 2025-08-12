@@ -4,7 +4,7 @@
 #include "types/types.h"
 #include <stdio.h>
 
-int execute_embedded_script(
+int execute_script(
     const char* script_path,
     const char* arg1, 
     const char* arg2, 
@@ -15,7 +15,7 @@ int execute_embedded_script(
     FILE* log_fp
 );
 
-int execute_embedded_script_for_thread(
+int execute_script_for_thread(
     const char* arch,
     const char* script_path,
     const char* arg1,
@@ -24,6 +24,7 @@ int execute_embedded_script_for_thread(
     const char* arg4,
     const char* arg5,
     const char* arg6,
+    const int sudo_user,
     FILE* log_fp
 );
 

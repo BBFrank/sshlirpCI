@@ -11,20 +11,17 @@
 
 // Function to configure the chroot for the thread (creates the chroot directory, executes the chroot setup script)
 int setup_chroot(thread_args_t* args, FILE* thread_log_fp) {
-    
-    if (mkdir(args->chroot_path, 0755) == -1 && errno != EEXIST) {
-        fprintf(thread_log_fp, "[Thread %s] Failed to create chroot directory %s: %s\n", args->arch, args->chroot_path, strerror(errno));
-        return 1;
-    }
 
     // Execute the chroot setup script
-    int script_status = execute_embedded_script_for_thread(
+    int script_status = execute_script_for_thread(
         args->arch,
         CHROOT_SETUP_SCRIPT_PATH,
         args->arch,
         args->chroot_path,
         args->thread_log_file,
-        NULL, NULL, NULL,
+        ROOTLESS_DEBOOTSTRAP_PATH,  
+        NULL, NULL,
+        args->sudo_user,
         thread_log_fp
     );
 
@@ -49,7 +46,7 @@ int check_worker_dirs(thread_args_t* args, FILE* thread_log_fp) {
     snprintf(path_buffer, sizeof(path_buffer), "%s%s", args->chroot_path, args->thread_chroot_main_dir);
     if(access(path_buffer, F_OK) == -1) {
         if (mkdir(path_buffer, 0755) == -1) {
-            fprintf(thread_log_fp, "[Thread %s] Failed to create main directory inside chroot: %s\n", args->arch, strerror(errno));
+            fprintf(thread_log_fp, "[Thread %s] Failed to create main directory (%s) inside chroot: %s\n", args->arch, path_buffer, strerror(errno));
             return 1;
         }
     }
@@ -108,7 +105,7 @@ int check_worker_dirs(thread_args_t* args, FILE* thread_log_fp) {
 // Function that copies the sshlirp and libslirp sources into the chroot from the host directories
 int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
     // Execute the script to copy sources into the chroot (I don't perform the actual chroot yet) for sshlirp
-    int script_status = execute_embedded_script_for_thread(
+    int script_status = execute_script_for_thread(
         args->arch,
         COPY_SOURCE_SCRIPT_PATH,
         args->sshlirp_host_source_dir,
@@ -116,6 +113,7 @@ int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
         args->thread_chroot_sshlirp_dir,
         args->thread_log_file,
         NULL, NULL,
+        args->sudo_user,
         thread_log_fp
     );
 
@@ -125,7 +123,7 @@ int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
     }
 
     // Now for libslirp
-    script_status = execute_embedded_script_for_thread(
+    script_status = execute_script_for_thread(
         args->arch,
         COPY_SOURCE_SCRIPT_PATH,
         args->libslirp_host_source_dir,
@@ -133,6 +131,7 @@ int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
         args->thread_chroot_libslirp_dir,
         args->thread_log_file,
         NULL, NULL,
+        args->sudo_user,
         thread_log_fp
     );
 
@@ -150,12 +149,13 @@ int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
     fprintf(thread_log_fp, "Modifying file %s to disable namespaces...\n", vdens_c_path);
 
     // Execute the script to modify the vdens.c file to disable namespaces (they cause errors in the chroot)
-    script_status = execute_embedded_script_for_thread(
+    script_status = execute_script_for_thread(
         args->arch,
         MODIFY_VDENS_SCRIPT_PATH,
         vdens_c_path, 
         args->thread_log_file, 
         NULL, NULL, NULL, NULL,
+        args->sudo_user,
         thread_log_fp
     );
 
@@ -165,7 +165,7 @@ int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
     }
 
     // Execute the copy script
-    script_status = execute_embedded_script_for_thread(
+    script_status = execute_script_for_thread(
         args->arch,
         COPY_SOURCE_SCRIPT_PATH,
         args->vdens_host_source_dir,
@@ -173,6 +173,7 @@ int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
         args->thread_chroot_vdens_dir,
         args->thread_log_file,
         NULL, NULL,
+        args->sudo_user,
         thread_log_fp
     );
 
@@ -189,7 +190,7 @@ int copy_sources_to_chroot(thread_args_t* args, FILE* thread_log_fp) {
 // Function that compiles and verifies the sshlirp sources inside the chroot (when I run the script I will actually enter the chroot)
 int compile_and_verify_in_chroot(thread_args_t* args, FILE* thread_log_fp) {
     // Execute the compilation script inside the chroot
-    int script_status = execute_embedded_script_for_thread(
+    int script_status = execute_script_for_thread(
         args->arch,
         COMPILE_SCRIPT_PATH,
         args->chroot_path,
@@ -198,6 +199,7 @@ int compile_and_verify_in_chroot(thread_args_t* args, FILE* thread_log_fp) {
         args->thread_chroot_target_dir,
         args->arch,
         args->thread_chroot_log_file,
+        args->sudo_user,
         thread_log_fp
     );
 
@@ -211,7 +213,7 @@ int compile_and_verify_in_chroot(thread_args_t* args, FILE* thread_log_fp) {
 
 int remove_sources_copy_from_chroot(thread_args_t* args, FILE* thread_log_fp) {
     // Execute the script to remove sources inside the chroot
-    int script_status = execute_embedded_script_for_thread(
+    int script_status = execute_script_for_thread(
         args->arch,
         REMOVE_SOURCE_SCRIPT_PATH,
         args->chroot_path,
@@ -219,6 +221,7 @@ int remove_sources_copy_from_chroot(thread_args_t* args, FILE* thread_log_fp) {
         args->thread_chroot_libslirp_dir,
         args->thread_log_file,
         NULL, NULL,
+        args->sudo_user,
         thread_log_fp
     );
 

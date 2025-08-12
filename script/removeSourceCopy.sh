@@ -21,7 +21,7 @@ chroot_libslirp_full_path="$chroot_path$chroot_libslirp_dir"
 # Rimuovo sshlirp source senza eliminare la directory chroot_sshlirp_dir
 if [ -d "$chroot_sshlirp_full_path/.git" ]; then
     echo "From removeSourceCopy.sh: Removing $chroot_sshlirp_full_path contents."
-    sudo rm -rf "$chroot_sshlirp_full_path/"*
+    rm -rf "$chroot_sshlirp_full_path/"*
     if [ $? -ne 0 ]; then
         echo "Error: From removeSourceCopy.sh: Error removing contents of $chroot_sshlirp_full_path."
         exit 1
@@ -33,7 +33,7 @@ fi
 # Rimuovo libslirp source senza eliminare la directory chroot_libslirp_dir
 if [ -d "$chroot_libslirp_full_path/.git" ]; then
     echo "From removeSourceCopy.sh: Removing $chroot_libslirp_full_path contents."
-    sudo rm -rf "$chroot_libslirp_full_path/"*
+    rm -rf "$chroot_libslirp_full_path/"*
     if [ $? -ne 0 ]; then
         echo "Error: From removeSourceCopy.sh: Error removing contents of $chroot_libslirp_full_path."
         exit 1

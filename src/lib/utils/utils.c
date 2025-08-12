@@ -13,7 +13,7 @@
 // 0: I did nothing (e.g., I have nothing to clone because the repo already exists or I haven't pulled anything new)
 // 2: I did something (e.g., I cloned the repo or pulled a new commit)
 // When errors occur outside the script (but still in this function), I return -1.
-int execute_embedded_script(
+int execute_script(
     const char* script_path,
     const char* arg1, 
     const char* arg2, 
@@ -57,7 +57,7 @@ int execute_embedded_script(
 // Helper function to create, write, make executable, and then remove a temporary script inside a chroot
 // Note: unlike the previous function, this one only returns 0 (success) or 1 (error) as the executed scripts (chrootSetup, compile, copySrc, removeSrcCopy)
 // do not need to return special values for the execution of other operations
-int execute_embedded_script_for_thread(
+int execute_script_for_thread(
     const char* arch,
     const char* script_path,
     const char* arg1,
@@ -66,6 +66,7 @@ int execute_embedded_script_for_thread(
     const char* arg4,
     const char* arg5,
     const char* arg6,
+    const int sudo_user,
     FILE* log_fp
 ) {
     if (chmod(script_path, 0700) == -1) {
@@ -75,7 +76,7 @@ int execute_embedded_script_for_thread(
     char command[MAX_COMMAND_LEN];
 
     if (strcmp(script_path, CHROOT_SETUP_SCRIPT_PATH) == 0) {
-        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\"", script_path, arg1, arg2, arg3);
+        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\" \"%d\"", script_path, arg1, arg2, arg3, arg4, sudo_user);
     } else if (strcmp(script_path, COPY_SOURCE_SCRIPT_PATH) == 0) {
         snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\"", script_path, arg1, arg2, arg3, arg4);
     } else if (strcmp(script_path, COMPILE_SCRIPT_PATH) == 0) {
@@ -85,7 +86,12 @@ int execute_embedded_script_for_thread(
     } else if (strcmp(script_path, MODIFY_VDENS_SCRIPT_PATH) == 0) {
         snprintf(command, sizeof(command), "%s \"%s\" \"%s\"", script_path, arg1, arg2);
     } else if (strcmp(script_path, TEST_SCRIPT_PATH) == 0) {
-        snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", script_path, arg1, arg2, arg3, arg4, arg5);
+        if (sudo_user) {
+            snprintf(command, sizeof(command), "%s \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", script_path, arg1, arg2, arg3, arg4, arg5);
+        } else {
+            fprintf(log_fp, "Warning: [Thread %s - script runner engine] Insufficient permissions to execute script: %s. You cannot run the test script without sudo privileges.\n", arch, script_path);
+            return 1;
+        }
     } else {
         fprintf(log_fp, "[Thread %s] Unknown script path: %s\n", arch, script_path);
         return 1;

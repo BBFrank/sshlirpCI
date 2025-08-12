@@ -1,12 +1,13 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#define SSHLIRPCI_SOURCE_DIR ""                         // Substitute with the actual absolute path of the sshlirpCI source directory (path/to/sshlirpCI)
+#define SSHLIRPCI_SOURCE_DIR "/home/francesco/Scrivania/terzo_anno/Sistemi_Virtuali/sshlirp/sshlirpCI/sshlirpCI"                         // Substitute with the actual absolute path of the sshlirpCI source directory (path/to/sshlirpCI)
 #define TEST_ENABLED 1                                  // Set to 1 to enable testing, 0 to disable
 
 #include <pthread.h>
 
 #define DEFAULT_CONFIG_PATH SSHLIRPCI_SOURCE_DIR "/ci.conf"
+#define ROOTLESS_DEBOOTSTRAP_PATH SSHLIRPCI_SOURCE_DIR "/script/rootlessDebootstrapWrapper.sh"
 #define CHECK_COMMIT_SCRIPT_PATH SSHLIRPCI_SOURCE_DIR "/script/checkCommit.sh"
 #define CHROOT_SETUP_SCRIPT_PATH SSHLIRPCI_SOURCE_DIR "/script/chrootSetup.sh"
 #define COMPILE_SCRIPT_PATH SSHLIRPCI_SOURCE_DIR "/script/compile.sh"
@@ -33,13 +34,16 @@
 #define CONFIG_ARCH_KEY "ARCHITECTURES="
 
 #define MAX_ARCHITECTURES 9
-#define MAX_CONFIG_LINE_LEN 512
-#define MAX_CONFIG_ATTR_LEN 256
+#define MIN_CONFIG_ATTR_LEN 128
+#define CONFIG_ATTR_LEN 256
+#define MAX_CONFIG_ATTR_LEN 512
+#define MAX_CONFIG_LINE_LEN 1024
 #define MAX_COMMAND_LEN 2048
 #define MAX_VERSIONING_LINE_LEN 128
 
 typedef struct {
     int pull_round;
+    int sudo_user;
     char arch[16];
     char sshlirp_host_source_dir[MAX_CONFIG_ATTR_LEN];
     char libslirp_host_source_dir[MAX_CONFIG_ATTR_LEN];
@@ -63,6 +67,7 @@ typedef struct {
 typedef struct {
     int status;
     char *error_message;
+    char *stats;
 } thread_result_t;
 
 #endif // TYPES_H

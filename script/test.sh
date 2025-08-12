@@ -29,6 +29,16 @@ if [ ! -d "$chroot_path" ]; then
     exit 1
 fi
 
+# --------- commentabile in assenza di sudo ---------
+# In questa nuova versione rootless di sshlirpCI non è possibile eseguire mknod senza privilegi root (la creazione di ogni tipo di device richiede comunque root
+# in quanto deve agire sul kernel)
+# Si è provato a modificare lo script chroot_path/_enter in modo che faccia binding del device /dev/net/tun dell'host sul chroot al momento della seconda fase di
+# debootstrap, ma anche in questo caso il mount --bind richiede permessi root, sempre per il solito motivo: i device non sono emulabili a basso livello e quindi anche per 
+# montarli c'é bisogno di sudo.
+# Purtroppo tutto ciò implica che la versione attuale di sshlirpCI fallisce la fase di test in quanto non è possibile utilizzare vdens senza l'interfaccia di rete.
+# I binari vengono comunque creati correttamente e trasferiti sull'host al termine del programma
+# Nota: se si desidera sperimentare il bind del device con lo script _enter, decommentare il blocco corrispondente in rootlessDebootstrapWrapper e commentare qui la zona "commentabile"
+
 # Configuro il device TUN necessario per il funzionamento di vdens
 echo "Configuring TUN device for vdens..."
 if [ ! -c /dev/net/tun ]; then
@@ -71,9 +81,11 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# --------- commentabile in assenza di sudo ---------
+
 # Creazione del file di configurazione per vdens (a causa del bug di mount è necessario generare a priori il file di resolv.conf)
 echo "Creating resolv.conf in chroot..."
-echo "nameserver 9.9.9.9" | sudo tee "${chroot_path}/etc/resolv.conf" > /dev/null
+echo "nameserver 9.9.9.9" | tee "${chroot_path}/etc/resolv.conf" > /dev/null
 
 # Entro nel chroot
 echo "Starting test script inside chroot..."
@@ -86,7 +98,14 @@ else
     exec >> "$absolute_chroot_log_file_path" 2>&1
 fi
 
-sudo chroot "$chroot_path" /bin/bash <<EOF
+enter_bin="$chroot_path/_enter"
+if [ ! -x "$enter_bin" ]; then
+    echo "Error: From compile.sh: _enter script not found or not executable in $chroot_path (expected $enter_bin)."
+    exit 1
+fi
+
+# Avvio ambiente rootless tramite _enter (fakeroot+unshare) e passo script via here-doc
+"$enter_bin" /bin/bash <<EOF
 
     echo "------- From test.sh (inside chroot): testing sshlirp binary at ${sshlirp_bin_path} inside ${chroot_path} -------"
 
@@ -125,7 +144,6 @@ sudo chroot "$chroot_path" /bin/bash <<EOF
     # I comandi seguenti vengono eseguiti in quella shell, nel namespace corretto.
     echo "From test.sh (inside chroot): Entering vdens namespace to run tests..."
     ./vdens cmd://$sshlirp_bin_path /bin/bash <<'INNER_EOF'
-        set -e
 
         # Ora siamo nel namespace di rete creato da vdens
         echo "From test.sh (in vdens namespace): Configuring network... (actual configuration:)"
@@ -167,13 +185,13 @@ INNER_EOF
     exit 0
 EOF
 
-# Ripristino del log file dell'host
-exec >> $host_log_file 2>&1
-
 if [ $? -ne 0 ]; then
     echo "Error: From test.sh: Script inside chroot failed."
     exit 1
 fi
+
+# Ripristino del log file dell'host
+exec >> $host_log_file 2>&1
 
 echo "...From test.sh (inside chroot): test script executed successfully."
 exit 0
